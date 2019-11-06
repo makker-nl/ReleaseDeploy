@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Release OSB script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2017-10-09
+
+https://docs.oracle.com/cd/E28280_01/dev.1111/e15866/app_export.htm#OSBDV1980
+
+History:
+2017-10-10, 1.0, Makker: Initial
+-->
+<project name="ReleaseOSB">
+    <property name="author" value="Martien van den Akker"/>
+    <property name="version" value="1.0"/>
+    <!--  OSB config jar  Task Definition     -->
+    <path id="osb.configjar.path">
+        <fileset file="${java.passed.home}/lib/tools.jar"/>
+        <fileset file="${wl.home}/server/lib/weblogic.jar"/>
+        <fileset file="${oracle.common.home}/modules/internal/features/jrf_wlsFmw_oracle.jrf.wls.classpath.jar"/>
+        <fileset file="${oracle.common.home}/modules/odsi_xquery2004_12.1.3/odsi.xquery.modules_12.1.3.0.jar"/>
+        <fileset file="${soa.home}/soa/modules/oracle.soa.common.adapters_11.1.1/oracle.soa.common.adapters.jar"/>
+        <fileset file="${osb.home}/tools/configjar/configjar.jar"/>
+        <fileset file="${osb.home}/lib/servicebus.jar"/>
+    </path>
+    <taskdef name="configjar" classname="com.bea.alsb.tools.configjar.ant.ConfigJarTask"
+             classpathref="osb.configjar.path"/>
+    <!-- Release an OSB Application Project -->
+    <target name="releaseOSBApplication">
+        <!-- Set Log OSB Application properties -->
+        <logMessage message="${line.separator}*************************"/>
+        <logMessage message="==> Release OSB Application ${rel.application}" level="info"/>
+        <propertycopy name="osb.application.src.dir" from="${rel.application}.src.dir"/>
+        <propertycopy name="osb.application.dest.base" from="${rel.application}.dest.base"/>
+        <property name="osb.application.dest.dir"
+                  value="${rel.output.dir}/${osb.application.dest.base}/${rel.application}"/>
+        <logMessage message="${line.separator}*************************"/>
+        <logMessage message="==> ${rel.application}" level="info"/>
+        <logMessage message="==> ${release}" level="info"/>
+        <logMessage message="==> Source folder of ${rel.application}: ${osb.application.src.dir}" level="info"/>
+        <logMessage message="==> Release destination of ${rel.application}: ${osb.application.dest.dir}" level="info"/>
+        <logMessage message="==> Propertyfile of ${rel.application}: ${osb.application.src.dir}/build.${release}.properties"
+                    level="info"/>
+        <property file="${osb.application.src.dir}/build.${release}.properties"/>
+        <logMessage message="==> Application Type of ${rel.application}: ${application.type}" level="info"/>
+        <logMessage message="*************************"/>
+        <if>
+            <equals arg1="${application.type}" arg2="osb"/>
+            <then>
+                <if>
+                    <not>
+                        <equals arg1="${osb.settings.file}" arg2="$${osb.settings.file}"/>
+                    </not>
+                    <then>
+                        <logMessage message="==> Process OSB application projects, with Settings file: ${osb.application.src.dir}/${osb.settings.file}"
+                                    level="info"/>
+                        <logMessage message="==> Create folder ${osb.application.dest.dir}" level="info"/>
+                        <mkdir dir="${osb.application.dest.dir}" description="Osb application target folder."/>
+                        <copy todir="${osb.application.dest.dir}">
+                            <fileset dir="${osb.application.src.dir}" includes="build.${release}.properties"/>
+                        </copy>
+                        <property name="osb.task.failonerror" value="true"/>
+                        <property name="osb.task.errorproperty" value=""/>
+                        <property name="osb.dest.config.jar" value="${osb.application.dest.dir}/${osb.config.jar}"/>
+                        <fail unless="osb.settings.file" message="Property osb.settings.file is not set!"/>
+                        <!-- expand properties in the settings file -->
+                        <property name="osb.settings.src.file"
+                                  value="${osb.application.src.dir}/${osb.settings.file}.tpl"/>
+                        <property name="osb.settings.dest.file"
+                                  value="${osb.application.src.dir}/${osb.settings.file}"/>
+                        <copy file="${osb.settings.src.file}" tofile="${osb.settings.dest.file}" overwrite="true">
+                            <filterchain>
+                                <expandproperties/>
+                            </filterchain>
+                        </copy>
+                        <!-- Copy the expanded file to the destination -->
+                        <copy file="${osb.settings.src.file}" tofile="${osb.application.dest.dir}/${osb.settings.file}"
+                              overwrite="true"/>
+                        <logMessage message="==> Call config.jar tool with settings file: ${osb.settings.dest.file}."
+                                    level="info"/>
+                        <buildOSB osb.failonerror="${osb.task.failonerror}"
+                                  osb.errorproperty="${osb.task.errorproperty}"
+                                  osb.settings.file="${osb.settings.dest.file}"/>
+                        <logMessage message="==> Delete temp folder(s) of config.jar tool (${tmp.output.dir}/osbinstance*)."
+                                    level="info"/>
+                        <delete includeemptydirs="true">
+                            <dirset dir="${tmp.output.dir}" includes="**/osbinstance*" casesensitive="false"/>
+                        </delete>
+                        <antcall target="adaptCustomizationFile"/>
+                    </then>
+                    <else>
+                        <logMessage message="Property osb.settings.file not set, so skip." level="info"/>
+                    </else>
+                </if>
+            </then>
+            <else>
+                <logMessage message="Application.type (${application.type}) is not 'osb', so skip." level="info"/>
+            </else>
+        </if>
+    </target>
+    <!-- Adapt OSB Customization File -->
+    <target name="adaptCustomizationFile">
+        <if>
+            <equals arg1="${osb.customization.includeFile}" arg2="true"/>
+            <then>
+                <logMessage message="Adapt OSB customization file for  ${rel.application}." level="info"/>
+                <property name="osb.customization.src.file"
+                          value="${osb.application.src.dir}/${osb.customization.file}"/>
+                <property name="osb.customization.src.subst.props"
+                          value="${osb.application.src.dir}/${osb.customization.subst.props}"/>
+                <property name="osb.customization.subst.props.file"
+                          value="${osb.application.src.dir}/${osb.customization.subst.props}"/>
+                <logMessage message="Copy OSB customization ${osb.customization.src.file} to ${osb.application.dest.dir}, using substitution file ${osb.customization.subst.props.file}."
+                            level="info"/>
+                <copy todir="${osb.application.dest.dir}">
+                    <fileset file="${osb.customization.src.file}"/>
+                </copy>
+                <logMessage message="======>Replace strings in ${osb.customization.file} in ${osb.application.dest.dir} to properties using ${osb.customization.subst.props.file}."
+                            level="info"/>
+                <replace dir="${osb.application.dest.dir}" includes="${osb.customization.file}"
+                         replacefilterfile="${osb.customization.src.subst.props}"/>
+            </then>
+            <else>
+                <logMessage message="No OSB customization file to adapt for  ${rel.application}." level="info"/>
+            </else>
+        </if>
+    </target>
+    <!-- Build OSB -->
+    <macrodef name="buildOSB">
+        <attribute name="osb.failonerror"/>
+        <attribute name="osb.errorproperty"/>
+        <attribute name="osb.settings.file"/>
+        <sequential>
+            <!-- Call configjar and route output to log.file -->
+            <record name="${log.file}" action="start" append="true"/>
+            <configjar failonerror="@{osb.failonerror}" errorproperty="@{osb.errorproperty}"
+                       settingsfile="@{osb.settings.file}"/>
+            <record name="${log.file}" action="stop"/>
+        </sequential>
+    </macrodef>
+</project>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Prepare Infra script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 2.0, 2017-12-21
+history:
+2017-12-21, 2.0, Makker: Revamped for 12c.
+-->
+<project name="PrepareInfra" default="prepareInfrastructure">
+  <property environment="env"/>
+  <property file="${basedir}/build.properties"/>
+  <property file="${basedir}/infraPrep.properties"/>
+  <import file="${wls.lib}"/>
+  <import file="${db.lib}"/>
+  <import file="${deploy.project.home}/library.xml"/>
+  <!-- Clean Up logs -->
+  <target name="clean">
+    <echo>Delete log dir ${log.dir}</echo>
+    <delete dir="${log.dir}"/>
+  </target>
+  <!-- initialize project -->
+  <target name="init" depends="clean">
+    <echo message="Deployment Environment: ${deployment.plan.environment}"></echo>
+    <fail message="Provide a proper targetEnvironment and environment property directory. ${line.separator} For example ant -f ${ant.project.name}.xml -Ddeployment.plan.environment=obpm -Denv.prop.dir=C:\oracle\admin\release\conf">
+      <condition>
+        <not>
+          <and>
+            <isset property="deployment.plan.environment"/>
+            <or>
+              <equals arg1="${deployment.plan.environment}" arg2="lsoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="lbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="losb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="oadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="osoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="obpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="oosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tsoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="aadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="asoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="abpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="aosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="padf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="psoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="pbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="posb"/>
+            </or>
+            <isset property="env.prop.dir"/>
+          </and>
+        </not>
+      </condition>
+    </fail>
+    <property file="${basedir}/infraPrep.properties"/>
+    <!-- Build number -->
+    <condition property="build.number" value="${env.BUILD_NUMBER}">
+      <isset property="env.BUILD_NUMBER"/>
+    </condition>
+    <!-- Build time -->
+    <tstamp>
+      <format property="build.date" pattern="yyyy-MM-dd HH:mm:ss"/>
+    </tstamp>
+    <buildnumber file="build.num"/>
+    <property file="${basedir}/deploy.properties"/>
+    <echo message="Create log dir" level="debug"></echo>
+    <mkdir dir="${log.dir}"/>
+    <property name="log.file" value="${log.dir}/instance-${build.number}.log"/>
+    <!-- Other properties -->
+    <property name="source.dir" value="${basedir}/${release.home}"/>
+    <!-- Check availability and load  environment properties -->
+    <property name="env.properties" value="${deployment.plan.environment}.properties"/>
+    <available file="${env.prop.dir}/${env.properties}" property="env.properties.available"/>
+    <fail unless="env.properties.available"
+          message="Environment property file ${env.prop.dir}/${env.properties} not found. Please check parameters!"/>
+    <logMessage message="Load environment property file ${env.prop.dir}/${env.properties}" level="info"/>
+    <property file="${env.prop.dir}/${env.properties}"/>
+    <!-- Check availability and load infraPrep release properties -->
+    <property name="infraPrepRel.properties" value="infraPrep.${releaseName}_${release}.properties"/>
+    <available file="${source.dir}/${infraPrepRel.properties}" property="infraPrepRel.properties.available"/>
+    <fail unless="infraPrepRel.properties.available"
+          message="InfraPrep Release property file ${source.dir}/${infraPrepRel.properties} not found. Please check parameters!"/>
+    <logMessage message="Load InfraPrep Release property file ${source.dir}/${infraPrepRel.properties}" level="info"/>
+    <property file="${source.dir}/${infraPrepRel.properties}"/>
+    <!-- default dev.mode -->
+    <property name="dev.mode" value="false"/>
+  </target>
+  <!-- log env properties -->
+  <target name="logEnvProps" depends="init">
+    <logMessage message="FMW_Home: ${fmw.home}" level="info"/>
+    <logMessage message="Weblogic home:  ${weblogic.home}" level="info"/>
+    <logMessage message="Log File: ${log.file}" level="info"/>
+    <logMessage message="Development mode: ${dev.mode}" level="info"/>
+    <logMessage message="environment = ${deployment.plan.environment}" level="info"/>
+    <logMessage message="environment prop dir = ${env.prop.dir}" level="info"/>
+    <logMessage message="environment prop file = ${env.properties}" level="info"/>
+    <logMessage message="InfraPrep release prop file = ${infraPrepRel.properties}" level="info"/>
+  </target>
+  <!-- Run all preps -->
+  <target name="prepareInfrastructure" depends="init,logEnvProps">
+    <logMessage message="date = ${build.date}" level="info"/>
+    <logMessage message="build = ${build.number}" level="info"/>
+    <logMessage message="Release = ${release}" level="info"/>
+    <logMessage message="ReleaseName = ${releaseName}" level="info"/>
+    <propertycopy name="preps" from="${deploy.server.type}.preps"/>
+    <input message="Enter deploy user for environment ${deployment.plan.environment}: " addproperty="deploy.user"/>
+    <input message="Enter password for user ${deploy.user}: " addproperty="deploy.password">
+      <handler classname="org.apache.tools.ant.input.SecureInputHandler"/>
+    </input>
+    <logMessage message="Run preperations for ${deploy.server.type}: ${preps}" level="info"/>
+    <foreach list="${preps}" param="prep.nr" target="callPreparation" inheritall="true" inheritrefs="false"/>
+    <logMessage message="Done running preperations." level="info"/>
+  </target>
+  <!-- Call patch -->
+  <target name="callPreparation">
+    <property name="prep.folder" value="${infraPreps.home}/${prep.nr}"/>
+    <property name="prep.ant.file" value="${prep.folder}/build.xml"/>
+    <logMessage message="Call Perparation Nr: ${prep.nr}, Ant File: ${prep.ant.file}" level="info"/>
+    <ant antfile="${prep.ant.file}" inheritall="true" inheritrefs="true" target="runPrep"/>
+  </target>
+</project>

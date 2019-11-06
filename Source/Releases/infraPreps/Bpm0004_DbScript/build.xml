@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- BPM Prep 0004: Run a database script
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2013-11-19
+-->
+<project name="Bpm0004_DbScript">
+  <!-- runPrep's main target -->
+  <target name="runPrep">
+    <logMessage message="Script voor uitvoeren van database script." level="info"/>
+    <logMessage message="Environment: " level="info"/>
+    <logMessage message="Prep folder: ${prep.folder}" level="info"/>
+    <!-- Check the property file of the prep -->
+    <property name="prep.properties" value="${prep.folder}/${ant.project.name}.properties"/>
+    <available file="${prep.properties}" property="prep.properties.available"/>
+    <fail unless="prep.properties.available"
+          message="Prep property file ${prep.properties} not found. Perperation ${ant.project.name} setup!"/>
+    <logMessage message="Load prep property file ${prep.properties}" level="info"/>
+    <property file="${prep.properties}"/>
+      <!-- DWN Database user and password -->
+    <input message="Enter user for database DWN: " addproperty="DWN.dbUserName"/>
+    <input message="Enter password for user ${DWN.dbUserName}@DWN: " addproperty="DWN.dbPassword">
+      <handler classname="org.apache.tools.ant.input.SecureInputHandler"/>
+    </input>
+    <!-- Add OutboundConnectionPools for dataSources -->
+    <logMessage message="Run Script" level="info"/>
+    <propertycopy name="dbUser" from="${database}.dbUserName"/>
+    <propertycopy name="dbUrl" from="${database}.dbUrl"/>
+    <propertycopy name="dbPassword" from="${database}.dbPassword"/>
+    <runDbScript dbuser="${dbUser}" dbpassword="${dbPassword}" dburl="${dbUrl}" dbscript="${prep.folder}/${dbScript}"/>
+  </target>
+</project>

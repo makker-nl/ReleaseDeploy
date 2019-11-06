@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- BPM Prep 0002: create DataSources
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2013-11-19
+-->
+<project name="Bpm0002_DataSource">
+  <target name="createDataSource">
+    <!-- Copy properties per DataSource -->
+    <propertycopy name="dsJndiName" from="${dataSourceName}.dsJndiName"/>
+    <propertycopy name="dbJdbcUrl" from="${dataSourceName}.dbJdbcUrl"/>
+    <!-- DWN -->
+    <logMessage message="Enter Usernames and passwords for databases." level="info"/>
+    <input message="Enter user for database DWN: " addproperty="${dataSourceName}.dbUserName"/>
+    <input message="Enter password for user ${DWN.dbUserName}@${dataSourceName}: "
+           addproperty="${dataSourceName}.dbPassword">
+      <handler classname="org.apache.tools.ant.input.SecureInputHandler"/>
+    </input>
+    <propertycopy name="dbUserName" from="${dataSourceName}.dbUserName"/>
+    <propertycopy name="dbPassword" from="${dataSourceName}.dbPassword"/>
+    <propertycopy name="xaEnabled" from="${dataSourceName}.xaEnabled"/>
+    <propertycopy name="initialCapacity" from="${dataSourceName}.initialCapacity"/>
+    <propertycopy name="maxCapacity" from="${dataSourceName}.maxCapacity"/>
+    <propertycopy name="capacityIncrement" from="${dataSourceName}.capacityIncrement"/>
+    <propertycopy name="testTablename" from="${dataSourceName}.testTablename"/>
+    <propertycopy name="fanEnabled" from="${dataSourceName}.fanEnabled"/>
+    <propertycopy name="targetServerList" from="${dataSourceName}.targetServerList"/>
+    <propertycopy name="targetClusterList" from="${dataSourceName}.targetClusterList"/>
+    <!-- Create  DataSource  -->
+    <logMessage message="${line.separator}Create DataSource ${dataSourceName}" level="info"/>
+    <createDataSource adminuser="${deploy.user}" adminpassword="${deploy.password}" adminurl="${deploy.adminServerURL}"
+                      dsname="${dataSourceName}" dsjndiname="${dsJndiName}" dsurl="${dbJdbcUrl}" dbusername="${dbUserName}"
+                      dbpassword="${dbPassword}" xaenabled="${xaEnabled}" initialcapacity="${initialCapacity}"
+                      maxcapacity="${maxCapacity}" capacityincrement="${capacityIncrement}"
+                      testtablename="${testTablename}" fanenabled="${fanEnabled}" targetserverlist="${targetServerList}"
+                      targetclusterlist="${targetClusterList}"/>
+  </target>
+  <!-- runPrep's main target -->
+  <target name="runPrep">
+    <logMessage message="Script voor aanmaken van DataSources" level="info"/>
+    <logMessage message="Environment: " level="info"/>
+    <logMessage message="Prep folder: ${prep.folder}" level="info"/>
+    <!-- Check the property file of the prep -->
+    <property name="prep.properties" value="${prep.folder}/${ant.project.name}.properties"/>
+    <available file="${prep.properties}" property="prep.properties.available"/>
+    <fail unless="prep.properties.available"
+          message="Prep property file ${prep.properties} not found. Perperation ${ant.project.name} setup!"/>
+    <logMessage message="Load prep property file ${prep.properties}" level="info"/>
+    <property file="${prep.properties}"/>
+    <!-- Create the DataSources  -->
+    <logMessage message="Create DataSources ${dataSourceNames}" level="info"/>
+    <foreach list="${dataSourceNames}" param="dataSourceName" target="createDataSource" inheritall="true"
+             inheritrefs="false"/>
+  </target>
+</project>

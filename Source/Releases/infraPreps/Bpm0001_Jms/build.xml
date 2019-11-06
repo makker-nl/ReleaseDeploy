@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- BPM Prep 0001: Configure JMS
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2013-11-19
+-->
+<project name="Bpm0001_Jms">
+  <target name="createJdbcJmsServer">
+    <logMessage message="Create JMS server ${jmsServer}" level="info"/>
+    <!-- Copy properties per JMSServer -->
+    <propertycopy name="jdbcStore" from="${jmsServer}.jdbcStore"/>
+    <propertycopy name="jdbcStorePrefix" from="${jmsServer}.jdbcStorePrefix"/>
+    <propertycopy name="targetServerName" from="${jmsServer}.targetServerName"/>
+    <!-- Create  JDBC based JmsServer -->
+    <createJdbcJmsServer adminuser="${deploy.user}" adminpassword="${deploy.password}"
+                         adminurl="${deploy.adminServerURL}" jmsservername="${jmsServer}" jdbcstorename="${jdbcStore}"
+                         datasourcename="${dataSourceName}" storeprefixname="${jdbcStorePrefix}"
+                         targetservername="${targetServerName}" migratable="${migratable}"/>
+  </target>
+  <target name="createJmsDistributedQueue">
+    <!-- Copy properties per Distributed Queue -->
+    <propertycopy name="distributedQueueJNDIName" from="${distributedQueueName}.distributedQueueJNDIName"/>
+    <propertycopy name="distributedErrorQueueName" from="${distributedQueueName}.distributedErrorQueueName"/>
+    <propertycopy name="distributedErrorQueueJNDIName" from="${distributedQueueName}.distributedErrorQueueJNDIName"/>
+    <!-- Create  Distributed Queue  -->
+    <logMessage message="${line.separator}Create DistributedQueue ${distributedQueueName}, with ErrorQueue: ${distributedErrorQueueName}, in JMSModule ${jmsModuleName}, with subDeployment ${jmsSubDeploymentName}"
+                level="info"/>
+    <createDistributedQueuePair adminuser="${deploy.user}" adminpassword="${deploy.password}"
+                                adminurl="${deploy.adminServerURL}" queuename="${distributedQueueName}"
+                                queuejndiname="${distributedQueueJNDIName}"
+                                errorqueuename="${distributedErrorQueueName}"
+                                errorqueuejndiname="${distributedErrorQueueJNDIName}" jmsmodulename="${jmsModuleName}"
+                                subdeploymentname="${jmsSubDeploymentName}" redeliverydelay="${redeliveryDelay}"
+                                redeliverylimit="${redeliveryLimit}" eqredelivlimit="${errorQueueRedeliveryLimit}"/>
+  </target>
+  <!-- runPrep's main target -->
+  <target name="runPrep">
+    <logMessage message="Script voor aanmaken van Universal Distributed Queues" level="info"/>
+    <logMessage message="Environment: " level="info"/>
+    <logMessage message="Prep folder: ${prep.folder}" level="info"/>
+    <!-- Check the property file of the prep -->
+    <property name="prep.properties" value="${prep.folder}/${ant.project.name}.properties"/>
+    <available file="${prep.properties}" property="prep.properties.available"/>
+    <fail unless="prep.properties.available"
+          message="Prep property file ${prep.properties} not found. Perperation ${ant.project.name} setup!"/>
+    <logMessage message="Load prep property file ${prep.properties}" level="info"/>
+    <property file="${prep.properties}"/>
+    <!-- Create the jmsServers including the JDBC Persistence store -->
+    <logMessage message="Create JMSServers ${jmsServers}" level="info"/>
+    <foreach list="${jmsServers}" param="jmsServer" target="createJdbcJmsServer" inheritall="true" inheritrefs="false"/>
+    <!-- Create the JMSModule -->
+    <logMessage message="${line.separator}Create JMSModule ${jmsModuleName}, with subDeployment ${jmsSubDeploymentName}"
+                level="info"/>
+    <createJmsModule adminuser="${deploy.user}" adminpassword="${deploy.password}" adminurl="${deploy.adminServerURL}"
+                     jmsmodulename="${jmsModuleName}" targetclustername="${jmsTargetCluster}"
+                     subdeploymentname="${jmsSubDeploymentName}" targetjmsserverlist="${jmsServers}"/>
+    <!-- Create the JMSConnectionFactory -->
+    <logMessage message="${line.separator}Create JMSConnectionFactory ${jmsConnectionFactoryName}, with JNDI Name: ${jmsConnectionFactoryJNDIName}, XAEnabled: ${jmsConnectionFactoryXAEnabled}, in JMSModule ${jmsModuleName}, with subDeployment ${jmsSubDeploymentName}"
+                level="info"/>
+    <createJmsConnectionFactory adminuser="${deploy.user}" adminpassword="${deploy.password}"
+                                adminurl="${deploy.adminServerURL}" connectionfactoryname="${jmsConnectionFactoryName}"
+                                connectionfactoryjndiname="${jmsConnectionFactoryJNDIName}"
+                                jmsmodulename="${jmsModuleName}" subdeploymentname="${jmsSubDeploymentName}"
+                                xaenabled="${jmsConnectionFactoryXAEnabled}"/>
+    <!-- Create the DistributedQueues -->
+    <logMessage message="Create DistributedQueues ${distributedQueueNames}" level="info"/>
+    <foreach list="${distributedQueueNames}" param="distributedQueueName" target="createJmsDistributedQueue"
+             inheritall="true" inheritrefs="false"/>
+  </target>
+</project>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- OSB Build script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2015-04-30
+History:
+2017-10-11, 1.1, Makker: Initial Release for DVOM.
+-->
+<project name="DeployOSBConfiguration">
+  <property environment="env"/>
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="1.0"/>
+  <!--Initialize Build  -->
+  <!-- Deploy OSB Application -->
+  <target name="deployOSBApplication">
+    <logMessage message="${line.separator}-->deployOSBApplication deploy application ${dpl.application} of type ${application.type}.${line.separator}"
+                level="info"/>
+    <logMessage message="---->Application source folder: ${dpl.application.home}" level="info"/>
+    <if>
+      <equals arg1="${deploy.server.type}" arg2="osb"/>
+      <then>
+        <logMessage message="${line.separator}---->Call deployOSBConfigs for ${dpl.application} of type ${application.type}.${line.separator}"
+                    level="info"/>
+        <antcall target="deployOSBConfig"/>
+      </then>
+      <else>
+        <logMessage message="---->Deploy server type (${deploy.server.type}) is not osb, so skip." level="info"/>
+      </else>
+    </if>
+  </target>
+  <!-- Adapt Customization File ALSBCustomizationFile.xml -->
+  <target name="adaptCustomizationFile">
+    <!-- Expandproperties with the appropriate values for target environment -->
+    <property name="deploy.custfile.tpl" value="${dpl.application.home}/${osb.customization.file}"/>
+    <logMessage message="Expand properties of ${deploy.custfile.tpl} to ${deploy.custfile}" level="info"/>
+    <copy file="${deploy.custfile.tpl}" tofile="${deploy.custfile}" overwrite="true">
+      <filterchain>
+        <expandproperties/>
+      </filterchain>
+    </copy>
+  </target>
+  <!-- Deploy OSB configuration-->
+  <target name="deployOSBConfig">
+    <logMessage message="${line.separator}DeployOSBConfig ==> Deploy OSB Configuration ${osb.config.jar} of ${dpl.application} for environment ${deployment.plan.environment}"
+                level="info"/>
+    <property name="deploy.osb.adminServer.URL" value="${deploy.serverURL}"/>
+    <if>
+      <equals arg1="${osb.customization.includeFile}" arg2="true"/>
+      <then>
+        <logMessage message="Call target adaptCustomizationFile." level="info"/>
+        <property name="deploy.custfile"
+                  value="${dpl.application.home}/${deployment.plan.environment}_${osb.customization.file}"/>
+        <antcall target="adaptCustomizationFile"/>
+      </then>
+      <else>
+        <logMessage message="No adaptCustomizationFile to adapt." level="info"/>
+        <property name="deploy.custfile" value="None"/>
+      </else>
+    </if>
+    <property name="osb.config.jar.file" value="${osb.config}.jar"/>
+    <property name="osb.dpl.config.jar" value="${dpl.application.home}/${osb.config.jar.file}"/>
+    <condition property="deploy.custfile.set" else="false">
+      <isset property="deploy.custfile"/>
+    </condition>
+    <logMessage message="${line.separator}Import ${osb.config.jar} for ${osb.config} to OSB ${deploy.osb.adminServer.URL}"
+                level="info"/>
+    <importToOSB wls.username="${deploy.user}" wls.password="${deploy.password}"
+                 wls.server="${deploy.osb.adminServer.URL}" import.project="${osb.config}"
+                 import.jar="${osb.dpl.config.jar}" import.customFile="${deploy.custfile}"/>
+  </target>
+  <!-- Macro Import To OSB-->
+  <macrodef name="importToOSB">
+    <attribute name="wls.username"/>
+    <attribute name="wls.password"/>
+    <attribute name="wls.server"/>
+    <attribute name="import.project"/>
+    <attribute name="import.jar"/>
+    <attribute name="import.customFile"/>
+    <sequential>
+      <logMessage message="Import OSB Configuration @{import.jar} with cust file @{import.customFile}." level="info"/>
+      <logMessage message="including @{import.project}." level="info"/>
+      <logMessage message="WLS Server: @{wls.server}." level="info"/>
+      <logMessage message="WLS username: @{wls.username}." level="info"/>
+      <!--<logMessage message="WLS password: @{wls.password}." level="info"/> -->
+      <logMessage message="WLS password: *****" level="info"/>
+      <ant antfile="${osbimportexport.project.home}/build.xml" inheritall="false" target="importToOSB">
+        <property name="wls.username" value="@{wls.username}"/>
+        <property name="wls.password" value="@{wls.password}"/>
+        <property name="wls.server" value="@{wls.server}"/>
+        <property name="import.project" value="@{import.project}"/>
+        <property name="import.jar" value="@{import.jar}"/>
+        <property name="import.customFile" value="@{import.customFile}"/>
+        <property name="osb.home" value="${osb.home}"/>
+        <property name="weblogic.home" value="${weblogic.home}"/>
+        <property name="fmw.home" value="${fmw.home}"/>
+        <property name="log.file" value="${log.file}"/>
+      </ant>
+    </sequential>
+  </macrodef>
+</project>
+

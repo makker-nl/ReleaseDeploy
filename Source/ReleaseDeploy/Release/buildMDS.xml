@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Release MDS script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 2.0, 2013-11-18
+History:
+2017-09-13, 1.0, Makker: Initial
+-->
+<project name="ReleaseMDS" default="releaseMDSAll">
+    <property name="author" value="Martien van den Akker"/>
+    <property name="version" value="2.0"/>
+    <!-- Release the MDS applications -->
+    <target name="releaseMDSAll">
+        <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>
+        <logMessage message="${line.separator}*************************"/>
+        <logMessage message="==> Release MDS applications ${mds.applications} " level="info"/>
+        <property name="mds.output.dir" value="${rel.output.dir}/MDS"/>
+        <logMessage message="==> Build destination: ${mds.output.dir}" level="info"/>
+        <logMessage message="*************************"/>
+        <logMessage message="Make folder: ${mds.output.dir}" level="info"/>
+        <mkdir dir="${mds.output.dir}"/>
+        <if>
+            <not>
+                <equals arg1="${mds.applications}" arg2="$${mds.applications}"/>
+            </not>
+            <then>
+                <foreach list="${mds.applications}" param="mds.application" target="releaseMDSApplication"
+                         inheritall="true" inheritrefs="false"/>
+            </then>
+            <else>
+                <echo message="Property mds.applications not set, so skip MDS."></echo>
+            </else>
+        </if>
+    </target>
+    <!-- Release an MDS Application Project -->
+    <target name="releaseMDSApplication">
+        <!-- Set Log MDS Application properties -->
+        <logMessage message="${line.separator}*************************"/>
+        <logMessage message="==> Release MDS Application for ${mds.application}" level="info"/>
+        <propertycopy name="mds.application.home" from="mds.${mds.application}.repository"/>
+        <property name="mds.application.dest.dir" value="${mds.output.dir}/${mds.application}"/>
+        <property name="mds.application.prop.file" value="${mds.application}.${release}.properties"/>
+        <logMessage message="==> Home of MDS Application: ${mds.application.home}" level="info"/>
+        <logMessage message="==> Build destination: ${mds.application.dest.dir}" level="info"/>
+        <logMessage message="==> MDS application properties: ${mds.application.prop.file}" level="info"/>
+        <logMessage message="*************************"/>
+        <logMessage message="Load package application property-file: ${mds.application.home}/${mds.application.prop.file}"
+                    level="info"/>
+        <property file="${mds.application.home}/${mds.application.prop.file}"/>
+        <logMessage message="Make folder: ${mds.application.dest.dir}" level="info"/>
+        <!-- Copy property files -->
+        <logMessage message="Copy application home ${mds.application.home} to ${mds.application.dest.dir}"
+                    level="info"/>
+        <copy todir="${mds.application.dest.dir}">
+            <fileset dir="${mds.application.home}" includes="*.properties"/>
+        </copy>
+        <if>
+            <not>
+                <equals arg1="${mds.application.projects}" arg2="$${mds.application.projects}"/>
+            </not>
+            <then>
+                <logMessage message="Process mds application projects ${mds.application.projects}" level="info"/>
+                <foreach list="${mds.application.projects}" param="mds.application.project"
+                         target="releaseMDSApplicationProject" inheritall="true" inheritrefs="false"/>
+            </then>
+            <else>
+                <echo message="Property mds.application.projects not set, so skip."></echo>
+            </else>
+        </if>
+    </target>
+    <!-- Release an MDS Application Project -->
+    <target name="releaseMDSApplicationProject">
+        <logMessage message="====>Include mds.application ${mds.application.project}" level="info"/>
+        <copy todir="${mds.application.dest.dir}/apps/${mds.application.project}">
+            <fileset dir="${mds.application.home}/apps/${mds.application.project}"
+                     excludes="SCA-INF/**,composite.xml,*.jpr,testsuites/**"/>
+        </copy>
+    </target>
+</project>

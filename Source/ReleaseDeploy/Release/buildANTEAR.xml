@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Release MVNEAR script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2017-10-09
+References:
+. http://maven.apache.org/ant-tasks/ (apparently deprecated unfortunately)
+. http://maven.apache.org/components/ant-tasks-archives/ant-tasks-2.1.3/index.html (Latest version: apparently 2.1.3)
+. http://repo2.maven.org/maven2/org/apache/maven/maven-ant-tasks/2.1.3/
+. https://stackoverflow.com/questions/7581156/how-to-call-for-a-maven-goal-within-an-ant-script
+
+History:
+2017-11-08, 1.0, Makker: Initial
+-->
+<project name="ReleaseANTEAR" xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="1.0"/>
+  <!-- Release a Java Application Project using -->
+  <target name="releaseANTEARApplication">
+    <!-- Set & Log  Application properties -->
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> Release ANTEAR Application ${rel.application}" level="info"/>
+    <propertycopy name="ant.application.src.dir" from="${rel.application}.src.dir"/>
+    <propertycopy name="ant.application.dest.base" from="${rel.application}.dest.base"/>
+    <property name="ant.application.dest.dir"
+              value="${rel.output.dir}/${ant.application.dest.base}/${rel.application}"/>
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> ${rel.application}" level="info"/>
+    <logMessage message="==> ${release}" level="info"/>
+    <logMessage message="==> Source folder of ${rel.application}: ${ant.application.src.dir}" level="info"/>
+    <logMessage message="==> Release destination of ${rel.application}: ${ant.application.dest.dir}" level="info"/>
+    <logMessage message="==> Propertyfile of ${rel.application}: ${ant.application.src.dir}/build.${release}.properties"
+                level="info"/>
+    <property file="${ant.application.src.dir}/build.${release}.properties"/>
+    <logMessage message="==> Application Type of ${rel.application}: ${application.type}" level="info"/>
+    <logMessage message="*************************"/>
+    <if>
+      <equals arg1="${application.type}" arg2="antear"/>
+      <then>
+        <logMessage message="==> Process ANTEAR application project" level="info"/>
+        <logMessage message="==> Create folder ${ant.application.dest.dir}" level="info"/>
+        <mkdir dir="${ant.application.dest.dir}" description="ANTEAR application target folder."/>
+        <copy todir="${ant.application.dest.dir}">
+          <fileset dir="${ant.application.src.dir}" includes="build.${release}.properties"/>
+        </copy>
+        <!--<property name="ant.archive.name" value="${deploy.base.name}.${deploy.archive.ext}"/> -->
+         <condition property="ant.archive.name"
+                           value="${deploy.base.name}-${deploy.revision}-SNAPSHOT.${deploy.archive.ext}"
+                           else="${deploy.base.name}-${deploy.revision}.${deploy.archive.ext}">
+                    <equals arg1="${deploy.snapshot}" arg2="true"/>
+                </condition>
+        <property name="ant.dest.archive" value="${ant.application.dest.dir}/${ant.archive.name}"/>
+        <property name="ant.build.dir" value="${basedir}/${ant.application.src.dir}/deploy"/>
+        <property name="ant.src.archive" value="${ant.build.dir}/${ant.archive.name}"/>
+        <property name="ant.build.jdev.workspace"
+                  value="${basedir}/${ant.application.src.dir}/${build.jdev.workspace}"/>
+        <logMessage message="==> Source archive: ${ant.src.archive}" level="info"/>
+        <logMessage message="==> Destination archive: ${ant.dest.archive}" level="info"/>
+        <ojdeployAnt ant.file="${ant.application.src.dir}/build.xml" ant.target="${build.ant.target}"
+                     ant.build.dir="${ant.build.dir}" jdev.workspace.path="${ant.build.jdev.workspace}"
+                     jdev.dpl.profile.name="${build.jdev.dpl.profile.name}" ant.build.archive="${ant.src.archive}"/>
+        <logMessage message="==> Copy Source archive to ${ant.dest.archive}" level="info"/>
+        <copy tofile="${ant.dest.archive}">
+          <fileset file="${ant.src.archive}"/>
+        </copy>
+        <if>
+          <equals arg1="deploy.plan.includeFile" arg2="true"/>
+          <then>
+            <logMessage message="==> Copy deployment plan ${deploy.plan.dir}/${deploy.plan.file} to ${ant.application.dest.dir}"
+                        level="info"/>
+            <copy todir="${ant.application.dest.dir}">
+              <fileset file="${deploy.plan.dir}/${deploy.plan.file}"/>
+            </copy>
+          </then>
+          <else>
+            <logMessage message="==>Include deployment plan = ${deploy.plan.includeFile}, so skip deployment plan."
+                        level="info"/>
+          </else>
+        </if>
+      </then>
+      <else>
+        <logMessage message="Application.type (${application.type}) is not 'antear', so skip." level="info"/>
+      </else>
+    </if>
+  </target>
+  <!-- Run maven through command -->
+  <macrodef name="ojdeployAnt">
+    <attribute name="ant.file"/>
+    <attribute name="ant.target"/>
+    <attribute name="ant.build.dir"/>
+    <attribute name="jdev.workspace.path"/>
+    <attribute name="jdev.dpl.profile.name"/>
+    <attribute name="ant.build.archive"/>
+    <sequential>
+      <logMessage message="extAnt" level="info"/>
+      <logMessage message="==>Call Ant file: @{ant.file}" level="info"/>
+      <logMessage message="==> Ant target: @{ant.target}" level="info"/>
+      <logMessage message="==> Ant build dir: @{ant.build.dir}" level="info"/>
+      <logMessage message="==> Jdev Workspace path: @{ant.build.dir}" level="info"/>
+      <logMessage message="==> Ant build dir: @{ant.build.dir}" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <property name="oracle.jdeveloper.deploy.dir" value="@{ant.build.dir}"/>
+      <property name="oracle.jdeveloper.ojdeploy.path" value="${jdeveloper.home}\\jdev\\bin\\ojdeploy.exe"/>
+      <property name="oracle.jdeveloper.ant.library" value="${jdev.home}/lib/ant-jdeveloper.jar"/>
+      <property name="oracle.jdeveloper.workspace.path" value="@{jdev.workspace.path}"/>
+      <property name="oracle.jdeveloper.deploy.profile.name" value="@{jdev.dpl.profile.name}"/>
+      <property name="oracle.jdeveloper.deploy.outputfile" value="@{ant.build.archive}"/>
+      <ant antfile="@{ant.file}" target="@{ant.target}" inheritall="true"/>
+      <record name="${log.file}" action="stop" append="true"/>
+    </sequential>
+  </macrodef>
+</project>

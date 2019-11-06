@@ -1,0 +1,59 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<jpr:project xmlns:jpr="http://xmlns.oracle.com/ide/project">
+   <hash n="component-versions">
+      <value n="oracle.ideimpl.model.TechnologyScopeUpdateMigrator" v="11.1.2.0.0.6"/>
+   </hash>
+   <list n="contentSets">
+      <string v="oracle.mds.internal.dt.ide.MDSLibraryCustCSProvider/mdsContentSet"/>
+      <string v="oracle.mds.internal.dt.ide.MDSADFLibVirtualNodeCSProvider/mdsLibVirtualNodeContentSet"/>
+      <string v="oracle.jdeveloper.model.PathsConfiguration/javaContentSet"/>
+      <string v="oracle.ide.model.ResourcePaths/resourcesContentSet"/>
+      <string v="oracle.jdeveloper.model.J2eeSettings/webContentSet"/>
+      <string v="oracle.jdeveloper.offlinedb.model.OfflineDBProjectSettings/offlineDBContentSet"/>
+      <string v="oracle.tip.tools.ide.fabric.addin.SCAContentSetProvider/sca-content"/>
+      <string v="oracle.toplink.workbench.addin/toplinkContentSet"/>
+      <string v="oracle.adfdtinternal.model.ide.settings.ADFMSettings/adfmContentSet"/>
+      <string v="oracle.bm.commonIde.data.project.ModelerProjectSettings/modelersContentSet"/>
+      <string v="oracle.sb.tooling.ide.core.projects.SbProjectSettings/sbContentSet"/>
+      <string v="oracle.tip.tools.ide.ess.addin.ESSContentSetProvider/ess-content"/>
+      <string v="oracle.bpm.fusion.studio.BPMProjectSettings/bpmProjectsProcessesContentSet"/>
+      <string v="oracle.jdeveloper.model.PathsConfiguration/cepContentSet"/>
+   </list>
+   <value n="defaultPackage" v="infraprep"/>
+   <hash n="oracle.ide.model.ResourcePaths">
+      <hash n="resourcesContentSet">
+         <list n="constituent-sets">
+            <hash>
+               <list n="pattern-filters">
+                  <string v="+*"/>
+               </list>
+               <list n="url-path">
+                  <url path="."/>
+               </list>
+            </hash>
+            <hash>
+               <list n="pattern-filters">
+                  <string v="+**"/>
+               </list>
+               <list n="url-path">
+                  <url path="../../Releases/"/>
+               </list>
+            </hash>
+         </list>
+         <list n="url-path"/>
+      </hash>
+   </hash>
+   <hash n="oracle.jdeveloper.model.PathsConfiguration">
+      <hash n="javaContentSet">
+         <list n="pattern-filters">
+            <string v="+**"/>
+         </list>
+         <list n="url-path">
+            <url path="."/>
+         </list>
+      </hash>
+   </hash>
+   <hash n="oracle.jdevimpl.config.JProjectPaths">
+      <url n="outputDirectory" path="classes/"/>
+   </hash>
+</jpr:project>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+<project name="dbLibrary">
+  <taskdef resource="net/sf/antcontrib/antlib.xml">
+    <classpath>
+      <pathelement location="${ant-contrib.jar}"/>
+    </classpath>
+  </taskdef>
+  <property file="./build.properties"/>
+  <!-- Create Add Outbound connection pool to DB adapter-->
+  <macrodef name="runDbScript">
+    <attribute name="dbuser"/>
+    <attribute name="dbpassword"/>
+    <attribute name="dburl"/>
+    <attribute name="dbscript"/>
+    <sequential>
+      <!-- https://ant.apache.org/manual/Tasks/java.html -->
+      <!-- Connection types: http://barrymcgillin.blogspot.nl/2015/02/connections-types-in-sqlcl.html 
+      c:\Data\Svn\DOE\trunk\ReleaseDeploy\InfraPrep\sqlcl\bin>sql DOE_owner/DOE_owner@"(description=(address=(host=omi01-scan.org.darwin-it.local)(protocol=tcp)(port=1521))(connect_data=(service_name=dwno11.dbsrv)))"
+      -->
+      <logMessage message="DatabaseUrl: @{dburl}" level="info"/>
+      <logMessage message="DatabaseUser: @{dbuser}" level="info"/>
+      <logMessage message="DatabasePassword: ****" level="info"/>
+      <property name="dbConnectStr" value='@{dbuser}/@{dbpassword}@"@{dburl}"'/>
+      <property name="dbScript.absPath" location="@{dbscript}"/>
+      <property name="dbScriptArg" value="@${dbScript.absPath}"/>
+      <logMessage message="Run Database script: ${dbScriptArg}" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <java classname="oracle.dbtools.raptor.scriptrunner.cmdline.SqlCli" failonerror="true" fork="true">
+        <arg value="${dbConnectStr}"/>
+        <arg value="${dbScriptArg}"/>
+        <classpath>
+          <pathelement location="${sqlcl.home}/lib/${sqlcl.jar}"/>
+        </classpath>
+      </java>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+</project>

@@ -1,0 +1,821 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+<project name="wlsLibrary">
+  <taskdef resource="net/sf/antcontrib/antlib.xml">
+    <classpath>
+      <pathelement location="${ant-contrib.jar}"/>
+    </classpath>
+  </taskdef>
+  <property file="./build.properties"/>
+  <path id="library.weblogic">
+    <fileset dir="${weblogic.home}/server/lib">
+      <include name="weblogic.jar"/>
+      <include name="wls-api.jar"/>
+    </fileset>
+  </path>
+  <taskdef name="wlst" classpathref="library.weblogic" classname="weblogic.ant.taskdefs.management.WLSTTask"/>
+  <taskdef file="wlstTaskDefs.xml" classpathref="library.weblogic"/>
+  <!-- Create JMS server including JDBC persistence store  -->
+  <macrodef name="createJdbcJmsServer">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="jmsservername"/>
+    <attribute name="jdbcstorename"/>
+    <attribute name="datasourcename"/>
+    <attribute name="storeprefixname"/>
+    <attribute name="targetservername"/>
+    <attribute name="migratable"/>
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{jmsservername} @{jdbcstorename} @{datasourcename} @{storeprefixname} @{targetservername} @{migratable}">
+        <script>
+#############################################################################
+# Create a JMS server including a JDBC persistence store
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import random, sys, traceback
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+jmsServerName=sys.argv[3]
+jdbcStoreName=sys.argv[4]
+dataSourceName=sys.argv[5]
+storePrefixName=sys.argv[6]
+targetServerName=sys.argv[7]
+migratable=sys.argv[8]
+#
+# Get TargetServer based on name
+def getTargetSvr(targetServerName, migratable):
+  if migratable=='true':
+    targetSvr=getMBean("/MigratableTargets/"+targetServerName+" (migratable)")    
+  else:
+    targetSvr=getMBean("/Servers/"+targetServerName)
+  return targetSvr
+#
+# Function to create the jdbcStore
+def createJdbcStore(jdbcStoreName, dataSourceName, storePrefixName, targetServerName, migratable):
+  #Check JDBCStores
+  try:
+    jdbcStoreMB='/JDBCStores/'+jdbcStoreName
+    print 'Check JDBCStore Managed Bean  '+ jdbcStoreMB
+    cd(jdbcStoreMB)
+    jdbcStore=cmo
+    print 'The JDBCStore ' + jdbcStoreName + ' already exists.'
+  except WLSTException:
+    print 'Create JDBCStore ' + jdbcStoreName + ' with dataSource: '+dataSourceName+' and prefixName: '+storePrefixName+', for server: '+targetServerName
+    try:
+      # create a JDBCStore
+      edit()
+      startEdit()
+      cd('/')
+      jdbcStore=cmo.createJDBCStore(jdbcStoreName)
+      dataSourceMBPath='/JDBCSystemResources/'+dataSourceName
+      #dataSourceMBPath='/SystemResources/JmsDS'
+      print('Get DataSourceMB: '+dataSourceMBPath)
+      dataSourceMB=getMBean(dataSourceMBPath)
+      if dataSourceMB is None:
+        raise Exception('DataSource '+dataSourceName+' does not exist!')
+      print('SetDataSource: '+dataSourceMB.getName())
+      jdbcStore.setDataSource(dataSourceMB)
+      #jdbcStore.setDataSource(getMBean('/SystemResources/JmsDS'))
+      jdbcStore.setPrefixName(storePrefixName)
+      #
+      targetSvr=getTargetSvr(targetServerName, migratable)
+      print "Add target: "+targetSvr.getName()
+      jdbcStore.addTarget(targetSvr)
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'JDBCStore '+jdbcStoreName+' created  successfully.'
+    except:
+      print '\nException in creating JDBCStore ' + jdbcStoreName
+      apply(traceback.print_exception, sys.exc_info())  
+      print '\nDump Stack '
+      dumpStack()
+      print '\nStop Edit'
+      stopEdit('y')
+      print '\nRaise Exception'
+      raise Exception('Failed to create JDBCStore '+jdbcStoreName)
+  return jdbcStore;
+#
+# Create the JmsServer
+def createJmsServer(jmsServerName, persistenceStore, targetServerName, migratable):
+  try:
+    jmsServerMB='/JMSServers/'+jmsServerName
+    print 'Check JMSServer Managed Bean  '+ jmsServerMB
+    cd(jmsServerMB)
+    jmsServer=cmo
+    print 'The JMSServer ' + jmsServerName + ' already exists.'
+  except WLSTException:
+    print 'Create JMSServer' + jmsServerName
+    try:
+      # create JMSServer
+      edit()
+      startEdit()
+      cd('/')
+      jmsServer=cmo.createJMSServer(jmsServerName)
+      print "Set PersistenceStore: "+persistenceStore.getName()
+      jmsServer.setPersistentStore(persistenceStore)
+      #
+      targetSvr=getTargetSvr(targetServerName, migratable)
+      print "Add target: "+targetSvr.getName()
+      jmsServer.addTarget(targetSvr)
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'JMSServer '+jmsServerName+' created  successfully.'
+    except:
+      print '\nException in creating JMSServer ' + jmsServerName
+      apply(traceback.print_exception, sys.exc_info())  
+      print '\nDump Stack '
+      dumpStack()
+      print '\nStop Edit'
+      stopEdit('y')
+      print '\nRaise Exception'
+      raise Exception('Failed to create JMSServer '+jmsServerName)
+  return jmsServer
+# Main function
+def main():
+  print("Connect to the AdminServer")                	
+  connect(adminUser,adminPassword,adminUrl)
+  # Create JDBCStore.
+  jdbcStore=createJdbcStore(jdbcStoreName, dataSourceName, storePrefixName, targetServerName, migratable)
+  # Create JMSServer.
+  createJmsServer(jmsServerName, jdbcStore, targetServerName, migratable)
+# Call main function
+main()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+  <!-- Create JMS Module including subdeployment  -->
+  <macrodef name="createJmsModule">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="jmsmodulename"/>
+    <attribute name="targetclustername"/>
+    <attribute name="subdeploymentname"/>
+    <attribute name="targetjmsserverlist"/>
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{jmsmodulename} @{targetclustername}  @{subdeploymentname} @{targetjmsserverlist} ">
+        <script>
+#############################################################################
+# Create a JMS module incuding a SubDeployment
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import random, sys, traceback
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+jmsModuleName=sys.argv[3]
+targetClusterName=sys.argv[4]
+subDeploymentName=sys.argv[5]
+targetJmsServerList=sys.argv[6]
+#
+# Get TargetServer based on name
+def getTargetSvr(targetServerName, migratable):
+  if migratable=='true':
+    targetSvr=getMBean("/MigratableTargets/"+targetServerName+" (migratable)")    
+  else:
+    targetSvr=getMBean("/Servers/"+targetServerName)
+  return targetSvr
+#
+# Get cluster
+def getCluster(clusterName):
+  cluster = getMBean("/Clusters/" + clusterName)
+  if cluster is None:
+    errorMsg= "Cluster " + clusterName + " does not appear to exist!"
+    print errorMsg
+    raise(Exception(errorMsg))
+  else:
+    print "Found cluster "+ clusterName+ "."
+  return cluster
+#
+# Function to create the JMSModule
+def createJmsModule(jmsModuleName, targetClusterName):
+  # Check if JMSModule exists
+  try:
+    jmsModuleMB='/JMSSystemResources/' + jmsModuleName
+    print 'Check JMSModule Managed Bean  '+ jmsModuleMB
+    cd(jmsModuleMB)
+    jmsModule = cmo
+    print 'The JMSModule ' + jmsModuleName + ' already exists.'
+  except WLSTException:
+    print 'Create JMSModule ' + jmsModuleName 
+    # create a JMSModule
+    try:
+      edit()
+      startEdit()
+      jmsModule = create(jmsModuleName, "JMSSystemResource")
+      # Get Cluster
+      print "\nGet Cluster "+targetClusterName
+      targetCluster=getCluster(targetClusterName);
+      print "Add target: "+targetCluster.getName()
+      jmsModule.addTarget(targetCluster)
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'JMSModule '+jmsModuleName+' created  successfully.'
+    except:
+      print '\nException in creating JMSModule ' + jmsModuleName
+      apply(traceback.print_exception, sys.exc_info())  
+      dumpStack()
+      stopEdit('y')
+      raise Exception('Failed to create JMSModule '+jmsModuleName)
+  return jmsModule
+#
+# Create a SubDeployment for the JMS module
+def createSubDeployment(subDeploymentName, jmsModuleName, targetJmsServerList):
+  # Check if JMS Subdeployment exists
+  try:
+    subDeploymentMB='/JMSSystemResources/' + jmsModuleName + '/SubDeployments/' + subDeploymentName
+    print 'Check JMSSubdeployment  Managed Bean  '+ subDeploymentMB
+    cd(subDeploymentMB)
+    subDeployment = cmo
+    print 'The JMSSubdeployment ' + subDeploymentName + ' already exists.'
+  except WLSTException:
+    # create a JMSSubdeployment
+    print 'Create JMSSubdeployment ' + subDeploymentName 
+    try:
+      edit()
+      startEdit()
+      jmsModule=getMBean('/JMSSystemResources/' + jmsModuleName)
+      if jmsModule is None:
+        raise Exception('JMSModule '+jmsModule+' does not exist!')
+      subDeployment = jmsModule.createSubDeployment(subDeploymentName)
+      targetJmsServerNames=targetJmsServerList.split(',')
+      for targetJmsServerName in targetJmsServerNames:
+        targetJmsServer=getMBean('/JMSServers/'+targetJmsServerName)
+        print('Add target '+targetJmsServer.getName())
+        subDeployment.addTarget(targetJmsServer)
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'JMSSubdeployment '+subDeploymentName+' created  successfully.'
+    except:
+      print '\nException in creating JMSSubdeployment ' + subDeploymentName
+      apply(traceback.print_exception, sys.exc_info())  
+      dumpStack()
+      stopEdit('y')
+      raise Exception('Failed to create JMSSubdeployment '+subDeploymentName)
+  return subDeployment
+# Main function
+def main():
+  print("Connect to the AdminServer")                	
+  connect(adminUser,adminPassword,adminUrl)
+  # Create JMSModule.
+  jmsModule = createJmsModule(jmsModuleName, targetClusterName)
+  subDeployment = createSubDeployment(subDeploymentName, jmsModuleName, targetJmsServerList)
+# Call main function
+main()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+  <!-- Create JMSConnectionFactory -->
+  <macrodef name="createJmsConnectionFactory">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="connectionfactoryname"/>
+    <attribute name="connectionfactoryjndiname"/>
+    <attribute name="jmsmodulename"/>
+    <attribute name="subdeploymentname"/>
+    <attribute name="xaenabled"/>
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{connectionfactoryname} @{connectionfactoryjndiname} @{jmsmodulename} @{subdeploymentname} @{xaenabled}">
+        <script>
+#############################################################################
+# Create a JMS Connection Factory
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import random, sys, traceback
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+connectionFactoryName=sys.argv[3]
+connectionFactoryJNDIName=sys.argv[4]
+jmsModuleName=sys.argv[5]
+subDeploymentName=sys.argv[6]
+xaEnabled=sys.argv[7]
+#
+# Function to create a JMSConnectionFactory
+def createJMSConnectionFactory(connectionFactoryName, connectionFactoryJNDIName, jmsModuleName, subDeploymentName, xaEnabled):
+  # Check if JMSConnectionFactory exists
+  try:
+    connectionFactoryMB='/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName + '/ConnectionFactories/' +connectionFactoryName
+    print 'Check JMSConnectionFactory  Managed Bean  '+ connectionFactoryMB
+    cd(connectionFactoryMB)
+    connectionFactory = cmo
+    print 'The JMSConnectionFactory ' + connectionFactoryName + ' already exists.'
+  except WLSTException:
+    # create a JMSConnectionFactory
+    print 'Create JMSConnectionFactory ' + connectionFactoryName + ' on JMS module '+jmsModuleName+', with subDeployment '+subDeploymentName
+    try:
+      edit()
+      startEdit()
+      jmsResource = getMBean('/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName)
+      connectionFactory = jmsResource.createConnectionFactory(connectionFactoryName)
+      connectionFactory.setSubDeploymentName(subDeploymentName)
+      connectionFactory.setJNDIName(connectionFactoryJNDIName)
+      connectionFactory.transactionParams.setXAConnectionFactoryEnabled(bool(xaEnabled))
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'JMSConnectionFactory '+connectionFactoryName+' created  successfully.'
+    except:
+      print '\nException in creating JMSConnectionFactory '+connectionFactoryName
+      apply(traceback.print_exception, sys.exc_info())  
+      print '\nDump Stack '
+      dumpStack()
+      print '\nStop Edit'
+      stopEdit('y')
+      print '\nRaise Exception'
+      raise Exception('Failed to create JMSConnectionFactory '+connectionFactoryName)
+  return connectionFactory
+#
+# Main function
+def main():
+  print("Connect to the AdminServer")                	
+  connect(adminUser,adminPassword,adminUrl)
+  # Create JMS Connection Factory
+  createJMSConnectionFactory(connectionFactoryName, connectionFactoryJNDIName, jmsModuleName, subDeploymentName, xaEnabled)
+# Call main function
+main()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+  <!-- Create JMS Distributed Queue, with Error Distributed Queue-->
+  <macrodef name="createDistributedQueuePair">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="queueName"/>
+    <attribute name="queuejndiname"/>
+    <attribute name="errorqueuename"/>
+    <attribute name="errorqueuejndiname"/>
+    <attribute name="jmsmodulename"/>
+    <attribute name="subdeploymentname"/>
+    <attribute name="redeliverydelay"/>
+    <attribute name="redeliverylimit"/>
+    <attribute name="eqredelivlimit"/>
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{queueName} @{queuejndiname} @{errorqueuename} @{errorqueuejndiname} @{jmsmodulename} @{subdeploymentname} @{redeliverydelay} @{redeliverylimit} @{eqredelivlimit}">
+        <script>
+#############################################################################
+# Create a Distributed queue pair (queue+error queue)
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import random, sys, traceback
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+queueName=sys.argv[3]
+queueJNDIName=sys.argv[4]
+errorQueueName=sys.argv[5]
+errorQueueJNDIName=sys.argv[6]
+jmsModuleName=sys.argv[7]
+subDeploymentName=sys.argv[8]
+redeliverydelay=sys.argv[9]
+redeliverylimit=sys.argv[10]
+eqRedelivlimit=sys.argv[11]
+#
+#
+# Function to create a Universal Distributed Queue
+def createDistributedQueue(queueName, queueJNDIName, jmsModuleName, subDeploymentName):
+  # Check if JMSDistributedQueue already exists
+  try:
+    jmsQueueMB='/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName + '/UniformDistributedQueues/' + queueName
+    print 'Check JMSDistributedQueue Managed Bean  '+ jmsQueueMB
+    cd(jmsQueueMB)
+    queue=cmo
+    print 'The JMSDistributedQueue ' + queueName + ' already exists.' 
+  except WLSTException:
+    # create a queue
+    print 'Create JMSDistributedQueue '+queueName+' on JMS Module ' + jmsModuleName +', with subDeployment '+subDeploymentName
+    try:
+      edit()
+      startEdit()
+      # Create Queue
+      jmsResource = getMBean('/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName)		
+      queue = jmsResource.createUniformDistributedQueue(queueName)
+      queue.setJNDIName(queueJNDIName)
+      queue.setLoadBalancingPolicy('Round-Robin')
+      queue.setSubDeploymentName(subDeploymentName)	
+      # Activate changes
+      save() 
+      activate(block='true')
+      print 'JMS Module updated '+jmsModuleName+' successfully, with added queue '+queueName+'.'
+    except:  
+      print '\nException in creating JMSDistributedQueue '+queueName
+      apply(traceback.print_exception, sys.exc_info())  
+      print '\nDump Stack '
+      dumpStack()
+      print '\nStop Edit'
+      stopEdit('y')
+      print '\nRaise Exception'
+      raise Exception('Failed to create JMSDistributedQueue '+queueName)
+  return queue
+#
+# Set ErrorQueue
+def setErrorQueue(jmsModuleName, queueName, errorQueueName,redeliverydelay,redeliverylimit,eqRedelivlimit):
+  try:
+    edit()
+    startEdit()
+    queue=getMBean('/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName + '/UniformDistributedQueues/' + queueName)
+    errorQueue=getMBean('/JMSSystemResources/' + jmsModuleName + '/JMSResource/' + jmsModuleName + '/UniformDistributedQueues/' + errorQueueName)
+    print 'Set ErrorQueue '+errorQueueName+' on '+queueName
+    errorQueue.getDeliveryParamsOverrides().setRedeliveryDelay(int(eqRedelivlimit))
+    queue.getDeliveryParamsOverrides().setRedeliveryDelay(int(redeliverydelay))
+    queue.getDeliveryFailureParams().setRedeliveryLimit(int(redeliverylimit))
+    queue.getDeliveryFailureParams().setErrorDestination(errorQueue)
+    # Activate changes
+    save() 
+    activate(block='true')
+  except WLSTException:
+    print 'The JMS Distributed Queue ' + queueName + ' or '+errorQueueName+' does not exist. Create it first' 
+    print '\nException in setting '+errorQueueName+' as an error destination on '+queueName
+    apply(traceback.print_exception, sys.exc_info())  
+    print '\nDump Stack '
+    dumpStack()
+    print '\nStop Edit'
+    stopEdit('y')
+    print '\nRaise Exception'
+    raise Exception('Failed to set '+errorQueueName+' as an error destination on '+queueName)
+#
+# Main function
+def main():
+  print("Connect to the AdminServer")                	
+  connect(adminUser,adminPassword,adminUrl)
+  # Create JMS Connection Factory
+  queue = createDistributedQueue(queueName, queueJNDIName, jmsModuleName, subDeploymentName)
+  errorQueue = createDistributedQueue(errorQueueName, errorQueueJNDIName, jmsModuleName, subDeploymentName)
+  setErrorQueue(jmsModuleName, queueName, errorQueueName,redeliverydelay,redeliverylimit,eqRedelivlimit)
+# Call main function
+main()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+  <!-- Create DataSource  -->
+  <macrodef name="createDataSource">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="dsname"/>
+    <attribute name="dsjndiname"/>
+    <attribute name="dsurl"/>
+    <attribute name="dbusername"/>
+    <attribute name="dbpassword"/>
+    <attribute name="xaenabled"/>
+    <attribute name="initialcapacity"/>
+    <attribute name="maxcapacity"/>
+    <attribute name="capacityincrement"/>
+    <attribute name="testtablename"/>
+    <attribute name="fanenabled"/>
+    <attribute name="targetserverlist"/>
+    <attribute name="targetclusterlist"/>
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{dsname} @{dsjndiname} @{dsurl} @{dbusername} @{dbpassword} @{xaenabled} @{initialcapacity} @{maxcapacity} @{capacityincrement} @{testtablename} @{fanenabled} @{targetserverlist} @{targetclusterlist}">
+        <script>
+#############################################################################
+# Create a DataSource
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import random, sys, traceback
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+dsName=sys.argv[3]
+dsJNDIName=sys.argv[4]
+dsURL=sys.argv[5]
+dbUsername=sys.argv[6]
+dbPassword=sys.argv[7]
+xaEnabled=sys.argv[8]
+initialCapacity=int(sys.argv[9])
+maxCapacity=int(sys.argv[10])
+capacityIncrement=int(sys.argv[11])
+testTableName=sys.argv[12]
+fanEnabled=sys.argv[13]
+targetServerList=sys.argv[14]
+targetClusterList=sys.argv[15]
+#
+# Get Targets
+def getTargets(targetServerList, targetClusterList):
+  cd('/')
+  # Get Servers
+  print('Get Target Servers: '+targetServerList)
+  targetServerNames=targetServerList.split(',')
+  targetServers=[]
+  for targetServerName in targetServerNames:
+    if targetServerName.lower() != 'none':
+      print ('Add Server: '+targetServerName)
+      targetServer=getMBean('/Servers/'+targetServerName)
+      if targetServer is None:
+        raise Exception('Server '+targetServerName+' does not exist!')
+      targetServers.append(targetServer)
+    else:
+      print('Skip Server')
+  # Filter on stand alone Servers
+  standaloneServers = [x for x in targetServers if x.getCluster() == None]
+  # Get Clusters
+  print('Get Target Clusters: '+targetClusterList)
+  targetClusterNames=targetClusterList.split(',')
+  targetClusters=[]
+  for targetClusterName in targetClusterNames:
+    if targetClusterName.lower() != 'none':
+      print ('Add Cluster: '+targetClusterName)
+      targetCluster=getMBean('/Clusters/'+targetClusterName)
+      if targetCluster is None:
+        raise Exception('Cluster '+targetClusterName+' does not exist!')
+      targetClusters.append(targetCluster)
+    else:
+      print('Skip Cluster')
+  # Build Targets
+  targets = [('Server', x.getName()) for x in standaloneServers]
+  targets.extend([('Cluster', x.getName()) for x in targetClusters])
+  return targets
+#
+# Create DataSource
+def createDataSource(dsName, dsJNDIName, dsURL, dbUsername, dbPassword, xaEnabled, initialCapacity, maxCapacity, capacityIncrement, testTableName, fanEnabled, dsTargets):
+  try: 
+    dataSourceMB='/JDBCSystemResources/'+dsName
+    print 'Check DataSource Managed Bean  '+ dataSourceMB
+    #Check DataSource
+    cd(dataSourceMB)
+    jdbcResource=cmo
+    print 'The DataSource ' + dsName + ' already exists.'
+  except WLSTException:
+    print 'Create DataSource ' + dsName + ' with JNDIName: '+dsJNDIName
+    try:
+      # Create a DataSource
+      edit()
+      startEdit()
+      print 'Creating new DataSource named ' + dsName + '.'
+      cd('/')
+      # Create data source
+      jdbcSystemResource = create(dsName, 'JDBCSystemResource')
+      jdbcResource = jdbcSystemResource.getJDBCResource()
+      jdbcResource.setName(dsName)
+      # Set JNDI name
+      jdbcResourceParameters = jdbcResource.getJDBCDataSourceParams()
+      jdbcResourceParameters.setJNDINames([dsJNDIName])
+      driver=jdbcResource.getJDBCDriverParams()
+      driver.setUrl(dsURL)
+      driver.setPassword(dbPassword)
+      driverProperties = driver.getProperties()
+      userProperty = driverProperties.createProperty('user')
+      userProperty.setValue(dbUsername)
+      if xaEnabled=='true':
+        print '  - XA'
+        driver.setDriverName('oracle.jdbc.xa.client.OracleXADataSource')
+        jdbcResourceParameters.setGlobalTransactionsProtocol('TwoPhaseCommit')
+      else:
+        print '  - Non XA'
+        driver.setDriverName('oracle.jdbc.OracleDriver')
+        jdbcResourceParameters.setGlobalTransactionsProtocol('None')
+      # Create connection pool
+      connectionPool = jdbcResource.getJDBCConnectionPoolParams()
+      connectionPool.setInitialCapacity(initialCapacity)
+      connectionPool.setMaxCapacity(maxCapacity)
+      connectionPool.setCapacityIncrement(capacityIncrement)
+      connectionPool.setTestTableName(testTableName+'\r\n\r\n')
+      #Oracle Params
+      if fanEnabled=='true':
+        print ("Set fanEnabled")
+        oracleParams=jdbcResource.getJDBCOracleParams()
+        oracleParams.setFanEnabled(true)
+      else:
+        print ("Skip fanEnabled")
+      #Targets
+      print '  - Targets: '
+      for (dsTargetType, dsTargetName) in dsTargets:
+        print '     * Type:'+dsTargetType+', Name:'+dsTargetName     
+      targetList = [ObjectName('com.bea:Name='+dsTargetName+',Type='+dsTargetType) for (dsTargetType, dsTargetName) in dsTargets]
+      cd(dataSourceMB)
+      set('Targets',jarray.array(targetList, ObjectName))
+      # Activate changes
+      save()
+      activate(block='true')
+      print 'DataSource created successfully.'
+      return jdbcResource;
+    except:
+      print '\nException in creating DataSource '+dsName
+      apply(traceback.print_exception, sys.exc_info())  
+      print '\nDump Stack '
+      dumpStack()
+      print '\nStop Edit'
+      undo(unactivateChanges=true)
+      stopEdit('y')
+      print '\nRaise Exception'
+      raise Exception('Failed to create DataSource '+dsName)
+  return jdbcResource
+#
+# Main function
+def main():
+  print("Connect to the AdminServer")                	
+  connect(adminUser,adminPassword,adminUrl)
+  print('Create DataSource: '+dsName)
+  print('targetServerList: '+targetServerList)
+  print('targetClusterList: '+targetClusterList)
+  # Get DataSource Targets
+  dsTargets=getTargets(targetServerList, targetClusterList)
+  # Create DataSource
+  dataSource=createDataSource(dsName, dsJNDIName, dsURL, dbUsername, dbPassword, xaEnabled, initialCapacity, maxCapacity, capacityIncrement, testTableName, fanEnabled, dsTargets)
+# Call main function
+main()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+<!-- Create Add Outbound connection pool to DB adapter-->
+  <macrodef name="addOutboundConnectionPoolToDBadt">
+    <attribute name="adminuser"/>
+    <attribute name="adminpassword"/>
+    <attribute name="adminurl"/>
+    <attribute name="fmwhome"/>
+    <attribute name="dbadtplanfolder"/>
+    <attribute name="dbadtplanfilename"/>
+    <attribute name="eisname"/>
+    <attribute name="xaenabled"/>
+    <attribute name="dsjndiname"/> 
+    <sequential>
+      <logMessage message="AdminServer: @{adminurl}" level="info"/>
+      <logMessage message="AdminUser: @{adminuser}" level="info"/>
+      <logMessage message="AdminPassword: ****" level="info"/>
+      <property name="dbadtplanpath" value="@{dbadtplanfolder}/@{dbadtplanfilename}"/>
+      <logMessage message="Preemptive create plan folder: @{dbadtplanfolder}" level="info"/>
+      <mkdir dir="@{dbadtplanfolder}"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <wlst failonerror="true" debug="false"
+            arguments="@{adminuser} @{adminpassword} @{adminurl} @{fmwhome} ${dbadtplanpath} @{eisname} @{xaenabled} @{dsjndiname} ">
+        <script>
+#############################################################################
+# Adapt Database Adapter
+#
+# @author Martien van den Akker, Darwin-IT Professionals
+# @version 1.0, 2017-12-20
+#
+#############################################################################
+import sys, traceback, random
+# Parameters
+adminUser=sys.argv[0]
+adminPassword=sys.argv[1]
+adminUrl=sys.argv[2]
+fmwHome=sys.argv[3]
+dbAdtPlanPath=sys.argv[4]
+eisName=sys.argv[5]
+xaEnabled=sys.argv[6]
+dsJNDIName=sys.argv[7]
+#   
+#
+lineSeperator='__________________________________________________________________________________'
+#
+#
+dbAdtAppHome=fmwHome+'/soa/soa/connectors'
+dbAdtName='DbAdapter'
+dbAdtAppPath=dbAdtAppHome+'/'+dbAdtName+'.rar'
+dbAdtCFInterface='javax.resource.cci.ConnectionFactory'
+dbAdtDSPropertyXA='xADataSourceName'
+dbAdtDSProperty='dataSourceName'
+moduleOverrideName=dbAdtName+'.rar'
+moduleDescriptorName='META-INF/weblogic-ra.xml'
+#
+# create a variable in the DeploymentPlan
+def createDeploymentPlanVariable(wlstPlan, name, value, xpath, origin='planbased'):
+  print('\nDestroy deployment plan variable assignment for '+name)
+  while wlstPlan.getVariableAssignment(name, moduleOverrideName, moduleDescriptorName):
+    wlstPlan.destroyVariableAssignment(name, moduleOverrideName, moduleDescriptorName)
+  print('Destroy deployment plan variable for '+name)
+  while wlstPlan.getVariable(name):
+    wlstPlan.destroyVariable(name)
+  print('Create deployment plan variable '+name+' with value '+value+' on xpath '+xpath)
+  variableAssignment = wlstPlan.createVariableAssignment(name, moduleOverrideName, moduleDescriptorName)
+  variableAssignment.setXpath(xpath)
+  variableAssignment.setOrigin(origin)
+  wlstPlan.createVariable(name, value)  
+# 
+#
+def createDBAdtOutboundConnectionPool(dbPlan,eisName,xaEnabled,dsJNDIName):
+  print('\nCreate DBAdapter OutboundConnectionPool '+eisName+' with DataSource JNDI '+dsJNDIName)
+  print(lineSeperator)
+  idRandom=random.randint(10000,100000)
+  connectionInstance='ConnectionInstance_'+eisName+'_JNDIName_'+str(idRandom)
+  configProperty='ConfigProperty_ConnectionFactoryLocation_Value_'+str(idRandom)
+  if xaEnabled=='true':
+    dsPropName=dbAdtDSPropertyXA
+  else:
+    dsPropName=dbAdtDSProperty
+  #
+  selectCFInterfaceXpath='/weblogic-connector/outbound-resource-adapter/connection-definition-group/[connection-factory-interface="'+dbAdtCFInterface+'"]'
+  selectConnInstanceXpath=selectCFInterfaceXpath+'/connection-instance/[jndi-name="'+ eisName + '"]'
+  selectJndiNameXpath= selectConnInstanceXpath+'/jndi-name'
+  selectAdapterPropXpath= selectConnInstanceXpath+'/connection-properties/properties/property/[name="'+dsPropName+'"]/value'
+  #
+  createDeploymentPlanVariable(dbPlan,connectionInstance,eisName,selectJndiNameXpath)
+  createDeploymentPlanVariable(dbPlan,configProperty,dsJNDIName,selectAdapterPropXpath)
+#
+# redeoploy the dbadapter
+def redeployDBAdapter(planPath):
+  print("Redeploy DB Adapter with plan "+planPath)
+  print(lineSeperator)
+  edit()
+  startEdit()
+  cd('/AppDeployments/'+dbAdtName+'/Targets');
+  redeploy(dbAdtName, planPath,targets=cmo.getTargets());
+  cd('/')
+  stopEdit('y')
+#
+#
+def main():
+  try:
+    print(lineSeperator)
+    print("Add Datasources to DBAdapter plan")
+    print(lineSeperator)
+    # Connect to administration server
+    print 'Connect naar Admin server ['+ adminUrl+'] met user ['+ adminUser+'] en password ['+ adminPassword+']'
+    connect(adminUser, adminPassword, adminUrl)
+    #
+    edit()
+    startEdit()
+    dbPlan=loadApplication(dbAdtAppPath, dbAdtPlanPath)
+    # Create OutboundConnectionPool 
+    print('\nOutboundConnectionPool for '+eisName+' refering dataSource '+dsJNDIName )
+    createDBAdtOutboundConnectionPool(dbPlan,eisName,xaEnabled,dsJNDIName)
+    #
+    print('\nSave DB Plan and Activate Changes.')
+    dbPlan.save();
+    save();
+    activate(block='true');
+    #
+    redeployDBAdapter(dbAdtPlanPath)
+    #
+    print("\nDone...")
+    print(lineSeperator)
+  except NameError, e:
+    print 'Apparently properties not set.'
+    print "Please check the property: ", sys.exc_info()[0], sys.exc_info()[1]
+  except:
+    apply(traceback.print_exception, sys.exc_info())
+    stopEdit('y')
+    exit(exitcode=1)
+#call main()
+main()
+exit()
+        </script>
+      </wlst>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+  </project>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- EAR deploy script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2017-11-08
+History:
+2017-11-08, 1.0, Makker: Initial Release for DVOM.
+-->
+<project name="DeployEAR">
+    <property environment="env"/>
+    <property name="author" value="Martien van den Akker"/>
+    <property name="version" value="1.0"/>
+    <!--Initialize Build  -->
+    <!-- Deploy Java enterprise Application -->
+    <target name="deployEARApplication">
+        <logMessage message="${line.separator}-->deployEARApplication deploy application ${dpl.application} of type ${application.type}.${line.separator}"
+                    level="info"/>
+        <logMessage message="---->Application source folder: ${dpl.application.home}" level="info"/>
+        <if>
+            <or>
+                <equals arg1="${application.type}" arg2="mvnear"/>
+                <equals arg1="${application.type}" arg2="antear"/>
+            </or>
+            <then>
+                <if>
+                    <equals arg1="${deploy.server.type}" arg2="${deploy.server.type}"/>
+                    <then>
+                        <logMessage message="${line.separator}---->Call deployEAR for ${dpl.application} of type ${application.type}.${line.separator}"
+                                    level="info"/>
+                        <antcall target="deployEAR"/>
+                    </then>
+                    <else>
+                        <logMessage message="---->Deploy server type (${deploy.server.type}) is not ${deploy.server.type}, so skip."
+                                    level="info"/>
+                    </else>
+                </if>
+            </then>
+            <else>
+                <logMessage message='---->Application type (${application.type}) is not "mvnear" or "antear", so skip.'
+                            level="info"/>
+            </else>
+        </if>
+    </target>
+    <!-- Adapt Deployment plan-->
+    <target name="adaptDeploymentPlanFile">
+        <!-- Expandproperties with the appropriate values for target environment -->
+        <property name="deploy.plan.file.tpl" value="${dpl.application.home}/${deploy.plan.file}"/>
+        <logMessage message="Expand properties of ${deploy.plan.file.tpl} to ${deploy.env.plan.file}" level="info"/>
+        <copy file="${deploy.plan.file.tpl}" tofile="${deploy.env.plan.file}" overwrite="true">
+            <filterchain>
+                <expandproperties/>
+            </filterchain>
+        </copy>
+    </target>
+    <!-- Deploy EAR -->
+    <target name="deployEAR">
+        <condition property="deploy.archive.revision" value="${deploy.mvn.revision}" else="${deploy.revision}">
+            <equals arg1="${application.type}" arg2="mvnear"/>
+        </condition>
+        <condition property="deploy.name" value="${deploy.base.name}-${deploy.archive.revision}-SNAPSHOT"
+                   else="${deploy.base.name}-${deploy.archive.revision}-SNAPSHOT">
+            <equals arg1="${deploy.snapshot}" arg2="true"/>
+        </condition>
+        <property name="deploy.archive" value="${dpl.application.home}/${deploy.name}.${deploy.archive.ext}"/>
+        <logMessage message="${line.separator}DeployEAR ==> Deploy Application archive ${deploy.archive} of ${deploy.name} for environment ${deployment.plan.environment}${line.separator}, target(s): ${deploy.targets}"
+                    level="info"/>
+        <if>
+            <equals arg1="${deploy.plan.includeFile}" arg2="true"/>
+            <then>
+                <logMessage message="Call target adaptCustomizationFile." level="info"/>
+                <property name="deploy.env.plan.file"
+                          value="${dpl.application.home}/${deployment.plan.environment}_${deploy.plan.file}"/>
+                <antcall target="adaptDeploymentPlanFile"/>
+            </then>
+            <else>
+                <logMessage message="No deploymentPlan to adapt." level="info"/>
+                <property name="deploy.env.plan.file" value="None"/>
+            </else>
+        </if>
+        <logMessage message="Using deployment plan: ${deploy.env.plan.file}" level="info"/>
+        <!-- default deploy.adminServerURL to deploy.serverURL -->
+        <property name="deploy.adminServerURL" value="${deploy.serverURL}"/>
+        
+        <deployApplicationToWls wls.username="${deploy.user}" wls.password="${deploy.password}"
+                                wls.server="${deploy.adminServerURL}" deploy.name="${deploy.name}"
+                                deploy.archive="${deploy.archive}" deploy.targets="${deploy.targets}"
+                                deploy.planfile="${deploy.env.plan.file}" deploy.plan.includeFile="${deploy.plan.includeFile}"/>
+        <logMessage message="${line.separator}DeployEAR ==> Finished deploying ${deploy.name} for environment ${deployment.plan.environment}${line.separator}."
+                    level="info"/>
+    </target>
+    <!-- Macro deploy To Weblogic -->
+    <macrodef name="deployApplicationToWls">
+        <attribute name="wls.username"/>
+        <attribute name="wls.password"/>
+        <attribute name="wls.server"/>
+        <attribute name="deploy.name"/>
+        <attribute name="deploy.archive"/>
+        <attribute name="deploy.targets"/>
+        <attribute name="deploy.planFile"/>
+        <attribute name="deploy.plan.includeFile"/>
+        <sequential>
+            <logMessage message="Deploy application @{deploy.name}, archive @{deploy.archive} to target(s) @{deploy.targets}, including (@{deploy.plan.includeFile})  plan file @{deploy.planFile}."
+                        level="info"/>
+            <logMessage message="WLS Server: @{wls.server}." level="info"/>
+            <logMessage message="WLS username: @{wls.username}." level="info"/>
+            <!--<logMessage message="WLS password: @{wls.password}." level="info"/> -->
+            <logMessage message="WLS password: *****" level="info"/>
+            <ant antfile="${wlsdeploy.project.home}/build.xml" inheritall="false" target="deployApplication">
+                <property name="wls.username" value="@{wls.username}"/>
+                <property name="wls.password" value="@{wls.password}"/>
+                <property name="wls.server" value="@{wls.server}"/>
+                <property name="deploy.name" value="@{deploy.name}"/>
+                <property name="deploy.archive" value="@{deploy.archive}"/>
+                <property name="deploy.targets" value="@{deploy.targets}"/>
+                <property name="deploy.plan.includeFile" value="@{deploy.plan.includeFile}"/>
+                <property name="deploy.planFile" value="@{deploy.planFile}"/>
+                <property name="weblogic.home" value="${weblogic.home}"/>
+                <property name="fmw.home" value="${fmw.home}"/>
+                <property name="log.file" value="${log.file}"/>
+            </ant>
+        </sequential>
+    </macrodef>
+</project>
+

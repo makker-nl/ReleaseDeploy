@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Release MVNEAR script 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2017-10-09
+References:
+. http://maven.apache.org/ant-tasks/ (apparently deprecated unfortunately)
+. http://maven.apache.org/components/ant-tasks-archives/ant-tasks-2.1.3/index.html (Latest version: apparently 2.1.3)
+. http://repo2.maven.org/maven2/org/apache/maven/maven-ant-tasks/2.1.3/
+. https://stackoverflow.com/questions/7581156/how-to-call-for-a-maven-goal-within-an-ant-script
+
+History:
+2017-11-08, 1.0, Makker: Initial
+-->
+<project name="ReleaseMVNEAR" xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="1.0"/>
+  <!-- Release a Java/ADF Application Project using Maven -->
+  <target name="releaseMVNEARApplication">
+    <!-- Set & Log Application properties -->
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> Release MVNEAR Application ${rel.application}" level="info"/>
+    <propertycopy name="mvn.application.src.dir" from="${rel.application}.src.dir"/>
+    <propertycopy name="mvn.application.dest.base" from="${rel.application}.dest.base"/>
+    <property name="mvn.application.dest.dir"
+              value="${rel.output.dir}/${mvn.application.dest.base}/${rel.application}"/>
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> ${rel.application}" level="info"/>
+    <logMessage message="==> ${release}" level="info"/>
+    <logMessage message="==> Source folder of ${rel.application}: ${mvn.application.src.dir}" level="info"/>
+    <logMessage message="==> Release destination of ${rel.application}: ${mvn.application.dest.dir}" level="info"/>
+    <logMessage message="==> Propertyfile of ${rel.application}: ${mvn.application.src.dir}/build.${release}.properties"
+                level="info"/>
+    <property file="${mvn.application.src.dir}/build.${release}.properties"/>
+    <logMessage message="==> Application Type of ${rel.application}: ${application.type}" level="info"/>
+    <logMessage message="*************************"/>
+    <if>
+      <equals arg1="${application.type}" arg2="mvnear"/>
+      <then>
+        <logMessage message="==> Process MVNEAR application project" level="info"/>
+        <logMessage message="==> Create folder ${mvn.application.dest.dir}" level="info"/>
+        <mkdir dir="${mvn.application.dest.dir}" description="MVNEAR application target folder."/>
+        <copy todir="${mvn.application.dest.dir}">
+          <fileset dir="${mvn.application.src.dir}" includes="build.${release}.properties"/>
+        </copy>
+        <condition property="mvn.archive.name"
+                   value="${deploy.base.name}-${deploy.mvn.revision}-SNAPSHOT.${deploy.archive.ext}"
+                   else="${deploy.base.name}-${deploy.mvn.revision}.${deploy.archive.ext}">
+          <equals arg1="${deploy.snapshot}" arg2="true"/>
+        </condition>
+        <property name="mvn.dest.archive" value="${mvn.application.dest.dir}/${mvn.archive.name}"/>
+        <property name="mvn.src.archive" value="${mvn.application.src.dir}/target/${mvn.archive.name}"/>
+        <logMessage message="==> Source archive: ${mvn.src.archive}" level="info"/>
+        <logMessage message="==> Destination archive: ${mvn.dest.archive}" level="info"/>
+        <logMessage message="==> Pom: ${mvn.application.src.dir}/pom.xml" level="info"/>
+        <maven mvn.pom="${mvn.application.src.dir}/pom.xml" mvn.command="${mvn.command}"/>
+        <logMessage message="==> Copy Source archive to ${mvn.dest.archive}" level="info"/>
+        <copy tofile="${mvn.dest.archive}">
+          <fileset file="${mvn.src.archive}"/>
+        </copy>
+        <logMessage message="==> Copy deployment plan ${deploy.plan.dir}/${deploy.plan.file} to ${mvn.application.dest.dir}"
+                    level="info"/>
+        <copy todir="${mvn.application.dest.dir}">
+          <fileset file="${deploy.plan.dir}/${deploy.plan.file}"/>
+        </copy>
+      </then>
+      <else>
+        <logMessage message="Application.type (${application.type}) is not 'mvnear', so skip." level="info"/>
+      </else>
+    </if>
+  </target>
+  <!-- Run maven through command -->
+  <macrodef name="maven">
+    <attribute name="mvn.pom"/>
+    <attribute name="mvn.command"/>
+    <sequential>
+      <condition property="exc.executable" value="cmd">
+        <os family="windows"/>
+      </condition>
+      <condition property="exc.executable" value="sh">
+        <os family="unix"/>
+      </condition>
+      <condition property="exc.args" value="/c">
+        <os family="windows"/>
+      </condition>
+      <condition property="exc.args" value="-c">
+        <os family="unix"/>
+      </condition>
+      <logMessage message="Call maven with pom:  @{mvn.pom} and command @{mvn.command}." level="info"/>
+      <record name="${log.file}" action="start" append="true"/>
+      <exec dir="." executable="${exc.executable} " failonerror="false" errorproperty="mvnError"
+            resultproperty="mvnResult">
+        <arg line="${exc.args} mvn -f @{mvn.pom} @{mvn.command}"/>
+      </exec>
+      <logMessage message="Maven result:  ${mvnResult}." level="info"/>
+      <logMessage message="Maven error:  ${mvnError}." level="info"/>
+      <fail message="Maven job failed with result code: ${mvnResult} - error: ${mvnError}!">
+     <condition>
+          <not>
+            <equals arg1="${mvnResult}" arg2="0"/>
+          </not>
+        </condition>
+   </fail>
+      <record name="${log.file}" action="stop"/>
+    </sequential>
+  </macrodef>
+</project>

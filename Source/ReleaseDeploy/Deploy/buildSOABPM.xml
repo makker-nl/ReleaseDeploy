@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- SOA/OSB Deploy All script 
+Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
+Adapted to suite a split Release/Deploy process. And to include OSB.
+@author Martien van den Akker, Darwin-IT Professionals
+@version 2.0, 2013-11-18
+history:
+2012-06-14, 0.1, Makker: Initial release.
+2017-09-27, 2.0, Makker: Abstracted to a separate deploy SOA/BPM sub project..
+-->
+<project name="deploySOABPM" default="deploySOABPMAll" basedir=".">
+    <property name="author" value="Martien van den Akker"/>
+    <property name="version" value="2.0"/>
+    <!-- Deploy All SOA projects 
+  <target name="deployAll" depends="init,logEnvProps,copyDeployEnvProperties">-->
+    <!-- Deploy SOA Application -->
+    <target name="deploySOABPMApplication">
+        <property name="soabpm.application.home" value="${dpl.application.home}"/>
+        <property name="soabpm.application" value="${dpl.application}"/>
+        <logMessage message="${line.separator}-->deploySOABPMApplication deploy application ${soabpm.application}.${line.separator}"
+                    level="info"/>
+        <logMessage message="---->Application source folder: ${soabpm.application.home}" level="info"/>
+        <if>
+            <or>
+                <equals arg1="${deploy.server.type}" arg2="soa"/>
+                <equals arg1="${deploy.server.type}" arg2="bpm"/>
+            </or>
+            <then>
+                <if>
+                    <equals arg1="${deploy.server.type}" arg2="${application.type}"/>
+                    <then>
+                        <logMessage message="${line.separator}---->Call deploySOABPMApplicationProjects for ${soabpm.application} of type ${application.type}.${line.separator}"
+                                    level="info"/>
+                        <antcall target="deploySOABPMApplicationProjects"/>
+                    </then>
+                    <else>
+                        <logMessage message="${line.separator}---->Deploy Server type (${deploy.server.type}), is not equal to application type (${application.type}), so skip.${line.separator}"
+                                    level="info"/>
+                    </else>
+                </if>
+            </then>
+            <else>
+                <logMessage message="${line.separator}---->Deploy Server type (${deploy.server.type}), is not SOA or BPM, so skip.${line.separator}"
+                            level="info"/>
+            </else>
+        </if>
+    </target>
+    <!-- Deploy Application of type SOA -->
+    <target name="deploySOABPMApplicationProjects">
+        <logMessage message="${line.separator}First list partitions ${soabpm.application}, to check partition ${soabpm.partition}."
+                    level="info"/>
+        <antcall target="listPartitions"/>
+        <logMessage message="${line.separator}Try to create partition ${soabpm.partition}." level="info"/>
+        <antcall target="createPartition"/>
+        <!-- Set soamds.apps.home pointing to the MDS app within mds.applications.home -->
+        <property name="soamds.apps.home" value="${basedir}/${mds.applications.home}/${soabpm.mds.application}"/>
+        <logMessage message="${line.separator}Deploy refering to MDS /apps folder in ${soamds.apps.home}."
+                    level="info"/>
+        <foreach list="${soabpm.projects}" param="soabpm.project" target="deploySOABPMProject" inheritall="true"
+                 inheritrefs="false"/>
+    </target>
+    <!-- Adapt configuration plan -->
+    <target name="adaptConfigPlan">
+        <!-- Expandproperties with the appropriate values for target environment -->
+        <property name="deploy.configplan.tpl"
+                  value="${soabpm.project.src.dir}/${soabpm.project.compositeName}_cfgplan.xml"/>
+        <property name="deploy.configplan"
+                  value="${soabpm.project.src.dir}/${soabpm.project.compositeName}_cfgplan_${deployment.plan.environment}.xml"/>
+        <logMessage message="Expand properties of ${deploy.configplan.tpl} to ${deploy.configplan}" level="debug"/>
+        <copy file="${deploy.configplan.tpl}" tofile="${deploy.configplan}" overwrite="true">
+            <filterchain>
+                <expandproperties/>
+            </filterchain>
+        </copy>
+    </target>
+    <!-- Deploy a Project -->
+    <target name="deploySOABPMProject">
+        <propertycopy name="soabpm.project.type" from="${soabpm.project}.type"/>
+        <if>
+            <or>
+                <equals arg1="${soabpm.project.type}" arg2="soa"/>
+                <equals arg1="${soabpm.project.type}" arg2="bpm"/>
+            </or>
+            <then>
+                <logMessage message="${line.separator}====>deploySOAProject deploy project ${soabpm.project} for environment ${deployment.plan.environment}"
+                            level="info"/>
+                <property name="soabpm.project.compositeName" value="${soabpm.project}"/>
+                <property name="soabpm.project.src.dir"
+                          value="${soabpm.application.home}/${soabpm.project.compositeName}"/>
+                <property name="soabpm.project.composite.dir" value="${soabpm.project.src.dir}/SOA"/>
+                <property name="soabpm.project.revision" value="${soabpm.revision}"/>
+                <propertycopy name="soabpm.project.enabled" from="${soabpm.project}.enabled"/>
+                <property name="soabpm.project.partition" value="${soabpm.partition}"/>
+                <logMessage message="======>partition ${soabpm.project.partition}" level="info"/>
+                <logMessage message="======>compositeName ${soabpm.project.compositeName}" level="info"/>
+                <logMessage message="======>revision ${soabpm.project.revision}" level="info"/>
+                <logMessage message="======>soabpm.project.src.dir ${soabpm.project.src.dir}" level="info"/>
+                <logMessage message="======>soabpm.project.enabled ${soabpm.project.enabled}" level="info"/>
+                <logMessage message="======>Build: ${build.number}${line.separator}" level="info"/>
+                <logMessage message="======>Expand properties of ${soabpm.application.home}/.adf/META-INF/adf-config.xml"
+                            level="info"/>
+                <move file="${soabpm.application.home}/.adf/META-INF/adf-config.xml"
+                      tofile="${soabpm.application.home}/.adf/META-INF/adf-config.org"/>
+                <copy file="${soabpm.application.home}/.adf/META-INF/adf-config.org"
+                      tofile="${soabpm.application.home}/.adf/META-INF/adf-config.xml">
+                    <filterchain>
+                        <expandproperties/>
+                    </filterchain>
+                </copy>
+                <!-- Create a Sar File -->
+                <antcall target="buildSAR"/>
+                <!-- Adapt the configuration plan -->
+                <antcall target="adaptConfigPlan"/>
+                <!-- deploy the SAR -->
+                <antcall target="deploySAR"/>
+                <if>
+                    <equals arg1="${soabpm.project.enabled}" arg2="true"/>
+                    <then>
+                        <logMessage message="======>Activate the composite..." level="info"/>
+                        <antcall target="activateComposite"/>
+                    </then>
+                    <else>
+                        <logMessage message="======>Stop the composite..." level="info"/>
+                        <then>
+                            <antcall target="stopComposite"/>
+                        </then>
+                    </else>
+                </if>
+                <if>
+                    <equals arg1="${soabpm.project.unitTest}" arg2="true"/>
+                    <then>
+                        <antcall target="unitTestComposite"/>
+                    </then>
+                    <else>
+                        <echo>Skip UnitTest</echo>
+                    </else>
+                </if>
+                <logMessage message="======>done deploySOAProject" level="info"/>
+            </then>
+            <else>
+                <logMessage message="${line.separator}====>deploySOAProject project ${soabpm.project}, ${soabpm.project.type} is not SOA or BPM, so skip."
+                            level="info"/>
+            </else>
+        </if>
+    </target>
+    <!-- Build a Sar file -->
+    <target name="buildSAR">
+        <logMessage message="build sar package" level="info"/>
+        <logMessage message="======>build sar package${line.separator}" level="info"/>
+        <logMessage message="scac.output: ${build.dir}/${soabpm.project.compositeName}.xml" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-package.xml" inheritall="false" target="package">
+                    <property name="compositeDir" value="${soabpm.project.composite.dir}"/>
+                    <property name="compositeName" value="${soabpm.project.compositeName}"/>
+                    <property name="revision" value="${soabpm.project.revision}"/>
+                    <property name="oracle.home" value="${oracle.home}"/>
+                    <property name="java.passed.home" value="${java.passed.home}"/>
+                    <property name="wl_home" value="${wl_home}"/>
+                    <property name="sca.application.home" value="${soabpm.application.home}"/>
+                    <property name="scac.application.home" value="${soabpm.application.home}"/>
+                    <property name="scac.input" value="${soabpm.project.composite.dir}/composite.xml"/>
+                    <property name="scac.output" value="${build.dir}/${soabpm.project.compositeName}.xml"/>
+                    <property name="scac.error" value="${build.dir}/${soabpm.project.compositeName}.err"/>
+                    <property name="scac.displayLevel" value="3"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+                <!-- the composite.xml in the sar gets corrupt by the replaceRevision ant-task in ant-sca-package.xml,  target"package"
+            So we should repair this -->
+                <property name="deploy.sarLocation"
+                          value="${soabpm.project.composite.dir}/deploy/sca_${soabpm.project.compositeName}_rev${soabpm.project.revision}.jar"/>
+                <property name="deploy.sar.dir" value="${soabpm.project.composite.dir}/deploy"/>
+                <logMessage message="${line.separator}======>Reformat composite.xml in: ${deploy.sarLocation}"
+                            level="info"/>
+                <unzip dest="${deploy.sar.dir}/unzipped" src="${deploy.sarLocation}"/>
+                <delete file="${deploy.sarLocation}"/>
+                <replace dir="${deploy.sar.dir}/unzipped" includes="composite.xml"
+                         replacefilterfile="${basedir}/compositeSubstitution.properties"/>
+                <record name="${log.file}" action="start" append="true"/>
+                <jar basedir="${deploy.sar.dir}/unzipped" destfile="${deploy.sarLocation}"/>
+                <record name="${log.file}" action="stop" append="true"/>
+                <delete dir="${deploy.sar.dir}/unzipped"/>
+            </then>
+        </if>
+    </target>
+    <!-- Deploy the SAR -->
+    <target name="deploySAR">
+        <property name="deploy.sarLocation"
+                  value="${soabpm.project.composite.dir}/deploy/sca_${soabpm.project.compositeName}_rev${soabpm.project.revision}.jar"/>
+        <property name="deploy.configplan"
+                  value="${soabpm.project.src.dir}/${soabpm.project.compositeName}_cfgplan_${deployment.plan.environment}.xml"/>
+        <!-- default property keepInstancesOnRedeploy -->
+        <property name="deploy.keepInstancesOnRedeploy" value="false"/>
+        <logMessage message="======>deploy on ${deploy.serverURL}, partition ${soabpm.project.partition} with user ${deploy.user} and plan ${deploy.configplan}"
+                    level="info"/>
+        <logMessage message="======>deploy sarFile ${deploy.sarLocation}" level="info"/>
+        <logMessage message="======>deployment plan used ${deploy.configplan}" level="info"/>
+        <logMessage message="======>overwrite: ${deploy.overwrite}" level="info"/>
+        <logMessage message="======>force Default: ${deploy.forceDefault}" level="info"/>
+        <logMessage message="======>keep running instances: ${deploy.keepInstancesOnRedeploy}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-deploy.xml" inheritall="false" target="deploy">
+                    <property name="wl_home" value="${wl_home}"/>
+                    <property name="oracle.home" value="${oracle.home}"/>
+                    <property name="serverURL" value="${deploy.serverURL}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="overwrite" value="${deploy.overwrite}"/>
+                    <property name="forceDefault" value="${deploy.forceDefault}"/>
+                    <property name="keepInstancesOnRedeploy" value="${deploy.keepInstancesOnRedeploy}"/>
+                    <property name="sarLocation" value="${deploy.sarLocation}"/>
+                    <property name="configplan" value="${deploy.configplan}"/>
+                    <property name="partition" value="${soabpm.project.partition}"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+            </then>
+        </if>
+    </target>
+    <!-- Stop a Composite -->
+    <target name="stopComposite">
+        <logMessage message="======>stop ${soabpm.project.compositeName}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-mgmt.xml" inheritall="false" target="stopComposite">
+                    <property name="host" value="${deploy.server}"/>
+                    <property name="port" value="${deploy.port}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="compositeName" value="${soabpm.project.compositeName}"/>
+                    <property name="revision" value="${soabpm.project.revision}"/>
+                    <property name="partition" value="${soabpm.project.partition}"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+            </then>
+        </if>
+    </target>
+    <!-- Activate a Composite -->
+    <target name="activateComposite">
+        <logMessage message="======>activate ${soabpm.project.compositeName}${line.separator}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-mgmt.xml" inheritall="false" target="activateComposite">
+                    <property name="host" value="${deploy.server}"/>
+                    <property name="port" value="${deploy.port}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="compositeName" value="${soabpm.project.compositeName}"/>
+                    <property name="revision" value="${soabpm.project.revision}"/>
+                    <property name="partition" value="${soabpm.project.partition}"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+            </then>
+        </if>
+    </target>
+    <!-- http://docs.oracle.com/cd/E29597_01/dev.1111/e10224/sca_lifecycle.htm#CACJHJJA
+    ant-sca-mgmt.xml listPartitions - Lists all available partitions in the SOA Infrastructure.
+ant-sca-mgmt.xml listCompositesInPartition - Lists all composites in a partition.
+ant-sca-mgmt.xml createPartition - Creates a partition in the SOA Infrastructure.
+ant-sca-mgmt.xml deletePartition - Undeploys all composites in a partition before deleting the partition.
+    -->
+    <!-- ListPartitions -->
+    <target name="listPartitions">
+        <logMessage message="======>List SOA Folders ${line.separator}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-mgmt.xml" inheritall="false" target="listPartitions">
+                    <property name="host" value="${deploy.server}"/>
+                    <property name="port" value="${deploy.port}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+            </then>
+        </if>
+    </target>
+    <!-- CreatePartition -->
+    <target name="createPartition">
+        <logMessage message="======>Create SOA Folder ${soabpm.partition} ${line.separator}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <record name="${log.file}" action="start" append="true"/>
+                <ant antfile="${oracle.home}/bin/ant-sca-mgmt.xml" inheritall="false" target="createPartition">
+                    <property name="host" value="${deploy.server}"/>
+                    <property name="port" value="${deploy.port}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="partition" value="${soabpm.partition}"/>
+                </ant>
+                <record name="${log.file}" action="stop" append="true"/>
+            </then>
+        </if>
+    </target>
+    <!-- Unit Test Composite -->
+    <target name="unitTestComposite">
+        <logMessage message="======>unit test ${soabpm.project.compositeName}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <ant antfile="${oracle.home}/bin/ant-sca-test.xml" inheritall="false" target="test">
+                    <property name="scatest.input" value="${project}"/>
+                    <property name="scatest.partition" value="${soabpm.project.partition}"/>
+                    <property name="scatest.format" value="junit"/>
+                    <property name="scatest.result" value="${env.CURRENT_FOLDER}/${junit.output.dir}"/>
+                    <property name="jndi.properties.input" value="${deployment.plan.environment}.jndi.properties"/>
+                </ant>
+            </then>
+        </if>
+    </target>
+</project>

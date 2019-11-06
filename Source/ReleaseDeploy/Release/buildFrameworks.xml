@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--  Release Frameworks script 
+Release the Deploy Project
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2017-09-13
+history:
+2017-09-13, 1.0, Makker: Initial.
+-->
+<project name="ReleaseFrameworks">
+  <!-- Release generiek project -->
+  <target name="releaseGenericProject">
+    <logMessage message="${line.separator}====>Release deploy project ${generic.project.name}" level="info"/>
+    <copy todir="${rel.output.dir}/scripts/${generic.project.name}">
+      <fileset dir="${generic.project.home}"
+               excludes="**/classes/**,**/logs/**,**/builds/**,**/public_html/**,build.num"/>
+    </copy>
+  </target>
+  <!-- Release deployment project -->
+  <target name="releaseDeployProject">
+    <logMessage message="${line.separator}====>Release deploy project ${deploy.project.name}" level="info"/>
+    <!-- Set mds.deploy property to false if no mds.applications id specified in this release -->
+    <condition property="mds.deploy" value="false">
+      <equals arg1="${mds.applications}" arg2=""/>
+    </condition>
+    <!-- Set mds.deploy property to true if above condition did not succeed. 
+       NOTE you can not change the value of a property if it is already set -->
+    <property name="mds.deploy" value="true"/>
+    <!-- Set target deploy.properties file -->
+    <property name="deploy.dest.dir" value="${rel.output.dir}/scripts/${deploy.project.name}"/>
+    <property name="from.deploy.properties" value="${deploy.project.home}/deploy.properties.tpl"/>
+    <property name="to.deploy.properties" value="${deploy.dest.dir}/deploy.properties"/>
+    <!-- Log Replace properties -->
+    <logMessage message="======>Replace From File ${from.deploy.properties}" level="info"/>
+    <logMessage message="======>Replace To   File ${to.deploy.properties}" level="info"/>
+    <logMessage message="======>Replace strings release          ${release}" level="info"/>
+    <logMessage message="======>Replace strings releaseName      ${releaseName}" level="info"/>
+    <logMessage message="======>Replace strings applications     ${rel.applications}" level="info"/>
+    <logMessage message="======>Replace strings mds.applications ${mds.applications}" level="info"/>
+    <logMessage message="======>Replace strings mds.deploy       ${mds.deploy}" level="info"/>
+    <copy file="${from.deploy.properties}" tofile="${to.deploy.properties}" overwrite="true">
+      <filterchain>
+        <expandproperties/>
+      </filterchain>
+    </copy>
+    <copy todir="${deploy.dest.dir}">
+      <fileset dir="${deploy.project.home}"
+               excludes="**/classes/**,**/logs/**,**/builds/**,**/public_html/**,build.num,*.bck, *.tpl"/>
+    </copy>
+    <logMessage message="======>Copy ${deploy.project.home}/${osbimportexport.project.home} to ${deploy.dest.dir}/${osbimportexport.project.home}"
+                level="info"/>
+    <copy todir="${deploy.dest.dir}/${osbimportexport.project.home}">
+      <fileset dir="${deploy.project.home}/${osbimportexport.project.home}"
+               excludes="**/classes/**,**/logs/**,**/builds/**,**/public_html/**,build.num"/>
+    </copy>
+  </target>
+  <!-- Release infraPrep project -->
+  <target name="releaseInfraPrepProject">
+    <logMessage message="${line.separator}====>Release InfraPrep project ${infraPrep.project.name}" level="info"/>
+    <property name="infraPrep.project.dest" value="${rel.output.dir}/scripts/${infraPrep.project.name}"/>
+    <logMessage message="Copy infraPrep project ${infraPrep.project.name} to ${infraPrep.project.dest}" level="debug"/>
+    <copy todir="${infraPrep.project.dest}">
+      <fileset dir="${infraPrep.project.home}"
+               excludes="**.tpl,**/BaseScripts/**,**/classes/**,**/logs/**,**/builds/**,**/public_html/**,build.num"/>
+    </copy>
+    <property name="from.infraPrep.properties" value="${infraPrep.project.home}/infraPrep.properties.tpl"/>
+    <property name="to.infraPrep.properties" value="${infraPrep.project.dest}/infraPrep.properties"/>
+    <logMessage message="Copy infraPrep properties ${from.infraPrep.properties} to ${to.infraPrep.properties}"
+                level="info"/>
+    <copy file="${from.infraPrep.properties}" tofile="${to.infraPrep.properties}" overwrite="true">
+      <filterchain>
+        <expandproperties/>
+      </filterchain>
+    </copy>
+    <!-- Check InfraPrep Release specific properties file -->
+    <property name="infraPrepRel.properties" value="infraPrep.${releaseName}_${release}.properties"/>
+    <available file="${releaseDir}/${infraPrepRel.properties}" property="infraPrepRel.properties.available"/>
+    <fail unless="infraPrepRel.properties.available"
+          message="InfraPrep Release property file ${releaseDir}/${infraPrepRel.properties} not found. Please check parameters!"/>
+    <!-- Copy InfraPrep Release specific Release properties file -->
+    <logMessage message="Copy release properties ${releaseDir}/${infraPrepRel.properties} to ${rel.output.dir}" level="info"/>
+    <copy todir="${rel.output.dir}">
+      <fileset dir="${releaseDir}" includes="${infraPrepRel.properties}"/>
+    </copy>
+    <!-- Copy Preps  -->
+    <property name="infraPreps.dest" value="${rel.output.dir}/${infraPreps.name}"/>
+    <logMessage message="Copy Infra Preperations from  ${infraPreps.home} to ${infraPreps.dest}" level="info"/>
+        <copy todir="${infraPreps.dest}">
+      <fileset dir="${infraPreps.home}"
+               excludes="**.tpl,**/BaseScripts/**,**/classes/**,**/logs/**,**/builds/**,**/public_html/**,build.num"/>
+    </copy>
+    
+  </target>
+</project>

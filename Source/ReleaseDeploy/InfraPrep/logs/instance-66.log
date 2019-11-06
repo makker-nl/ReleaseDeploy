@@ -1,0 +1,37 @@
+Load environment property file ..\Generic/obpm.properties
+Load InfraPrep Release property file c:\Data\Svn\DOE\trunk\ReleaseDeploy\InfraPrep/../../Releases/infraPrep.DOE_1.0.0.properties
+FMW_Home: c:\Oracle\JDeveloper\12210_BPMQS
+Weblogic home:  c:\Oracle\JDeveloper\12210_BPMQS/wlserver
+Log File: c:\Data\Svn\DOE\trunk\ReleaseDeploy\InfraPrep/logs/instance-66.log
+Development mode: false
+environment = obpm
+environment prop dir = ..\Generic
+environment prop file = obpm.properties
+InfraPrep release prop file = infraPrep.DOE_1.0.0.properties
+date = 2017-12-07 16:07:00
+build = 66
+Release = 1.0.0
+ReleaseName = DOE
+Run patches for bpm: TST0001
+Call Perparation Nr: TST0001, Ant File: ../../Releases/infraPreps/TST0001/build.xml
+Test Run script voor aanmaken van Universal Distributed Queues
+Environment: 
+Prep folder: ../../Releases/infraPreps/TST0001
+Load prep property file ../../Releases/infraPreps/TST0001/tst0001.properties
+Create JMSServers DOEBPMJMSServer1,DOEBPMJMSServer2
+Create JMSModule DOEBPMJMSModule, with subDeployment DOEBPMJMSModule_SubDeployment
+AdminServer: t3://o-bpm-1-admin-vhn.ont.org.darwin-it.local:7001
+AdminUser: akkerm2
+AdminPassword: ****
+     [wlst] Connect to the AdminServer
+     [wlst] Connecting to t3://o-bpm-1-admin-vhn.ont.org.darwin-it.local:7001 with userid akkerm2 ...
+     [wlst] Successfully connected to Admin Server "AdminServer" that belongs to domain "o-bpm-1_domain".
+     [wlst] 
+     [wlst] Warning: An insecure protocol was used to connect to the server. 
+     [wlst] To ensure on-the-wire security, the SSL port or Admin port should be used instead.
+     [wlst] 
+     [wlst] Check JMSModule Managed Bean  /JMSSystemResources/DOEBPMJMSModule
+     [wlst] The JMSModule DOEBPMJMSModule already exists.
+     [wlst] Check JMSSubdeployment  Managed Bean  /SystemResources/DOEBPMJMSModule/SubDeployments/DOEBPMJMSModule_SubDeployment
+     [wlst] The JMSSubdeployment DOEBPMJMSModule_SubDeployment already exists.
+Done running patches.

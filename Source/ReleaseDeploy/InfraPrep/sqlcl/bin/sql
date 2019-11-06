@@ -1,0 +1,244 @@
+#!/bin/bash
+########################################################################
+#  (@)sql.sh
+#
+#  Copyright 2014 by Oracle Corporation,
+#  500 Oracle Parkway, Redwood Shores, California, 94065, U.S.A.
+#  All rights reserved.
+#
+#  This software is the confidential and proprietary information
+#  of Oracle Corporation.
+#
+# NAME	sql
+#
+# DESC 	This script starts SQL CL.
+#
+# AUTHOR bamcgill
+#
+# MODIFIED
+#   bamcgill    21/03/2014  Created
+#   bamcgill    18/07/2014  Simplified classpaths and args
+#   bamcgill    11/12/2014  Renamed script and contents
+#   bamcgill    16/01/2015  Renamed script and contents
+#   bamcgill    05/02/2015  Added STD_ARGS for headless and other args
+#   cdivilly    12/02/2015  Locate home folder via symlinks
+#   bamcgill    10/06/2015  Quote jarfiles for dirs with spaces
+#   bamcgill    02/10/2015  Adding specific JAVA_HOME for ADE dev users
+#   totierne    02/10/2015  use -cp instead of JARFILE to add ojdbc6 
+#   bamcgill    14/10/2015  switch Cygwin settings so Cygwin Term will work
+#   totierne    16/10/2015  add classpath to allow times ten jars
+#   bamcgill    17/10/2015  Cleaning up bootstrap to call single java 
+#                           implementation with pruned args.
+#   totierne    12/05/2016  added $OH/lib to $LD_LIBRARY_PATH when $OH 
+#   bamcgill    12/05/2016  adding -cleanup to args 
+#   bamcgill    29/06/2016  Added more checks around JAVA_HOME settings 
+#   bamcgill    17/11/2016  Added $OH/jdk as java location if JAVA_HOME not set
+########################################################################
+
+
+#
+# set up the main arguments for java.
+#
+function setupArgs {
+	#
+	# Standard JVM options which are always used
+	#
+	STD_ARGS="-Djava.awt.headless=true -Dapple.awt.UIElement=true -Xss10M -Djava.net.useSystemProxies=true"
+}
+
+#
+# Set SQLHOME to be canonical paths
+#
+function setupSQLHome {
+	#
+	# resolve the folder where this script is located, traversing any symlinks
+	#
+	PRG="$0"
+	# loop while $PRG is a symlink
+	while [ -h "$PRG" ] ; do
+	  # figure out target of the symlink
+	  ls=`ls -ld "$PRG"`
+	  link=`expr "$ls" : '.*-> \(.*\)$'`
+	  # traverse to the target of the symlink
+	  if expr "$link" : '/.*' > /dev/null; then
+	  PRG="$link"
+	  else
+	  PRG=`dirname "$PRG"`"/$link"
+	  fi
+	done
+	
+	#
+	# SQLHOME is where we live.  Lets get an exact address.
+	# sql script is in ${SQL_HOME}/bin so lets check above and get the 
+	# canonical path for that
+	#
+	SQL_HOME=`dirname "$PRG"`/..
+	export SQL_HOME=`cd "${SQL_HOME}" > /dev/null && pwd`
+	
+	# If you have downloaded a jre, dropping it into sqlcl as jre will make it first in line
+	if [ -d "$SQL_HOME/jre" ]; then
+	 JAVA_HOME=$SQL_HOME/jre
+	 PATH=$JAVA_HOME/bin:$PATH
+	fi
+
+}
+
+#
+# Setup classpath depending on where we are
+#
+function setupClasspath {
+	#
+	# If we are in an ORACLE_HOME, then we want to try to use the jdbc
+	# drivers in there.
+	# Here we are frontloading the Oracle JDBC jars. We are not version
+	# checking at this stage. 
+	#
+	if test  "m$ORACLE_HOME" = "m" 
+	then
+	  CPLIST="$SQL_HOME/lib/oracle.sqldeveloper.sqlcl.jar:$CLASSPATH"
+	else
+	  # where ORACLE_HOME points to ordinary ORACLE_HOME or 
+	  # INSTANT_CLIENT (or use shipped with sqlcl ojdbc8.jar)
+	  CPLIST="$ORACLE_HOME/jdbc/lib/ojdbc8.jar:$ORACLE_HOME/ojdbc8.jar:$ORACLE_HOME/jdbc/lib/ojdbc7.jar:$ORACLE_HOME/ojdbc7.jar:$ORACLE_HOME/jdbc/lib/ojdbc6.jar:$ORACLE_HOME/ojdbc6.jar:$SQL_HOME/lib/oracle.sqldeveloper.sqlcl.jar:$CLASSPATH"  
+	  #Patch for oci jdbc
+	  if [ -d "$SQL_HOME/thick/" ]; then
+	   CPLIST="$SQL_HOME/thick/ojdbc8.jar:$CPLIST"
+	   export LD_LIBRARY_PATH=$SQL_HOME/thick:$LD_LIBRARY_PATH
+	  else
+	   export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$ORACLE_HOME:$LD_LIBRARY_PATH
+	  fi
+	fi
+	 
+	#
+	# Lets look for jars in the extensions
+	# directory under lib.  These will be loaded
+	# at startup as well.
+	#
+	
+	CPLIST=$SQL_HOME/lib/extensions/*:$CPLIST
+}
+#
+# Do you use cygwin?  Lets see and make the classpath right
+#
+function checkCygwin {
+
+#
+# Ok, now we have a classpath, lets make sure it works with Cygwin too.
+#
+	#
+	# Check for Cygwin
+	#
+	cygwin=false
+	case `uname` in
+		CYGWIN*) cygwin=true;;
+	esac
+	
+	#
+	# If its Cygwin, then convert the classpath to posix style.
+	# Convert the terminal to something that the Cygwin terminal 
+	# will understand and force jline to use a unix terminal as
+	# cygwin reports TTY style badly
+	if $cygwin; then
+	 CPLIST=$(cygpath -pw "$CPLIST") 
+	 stty -icanon min 1 -echo > /dev/null 2>&1
+	 stty icanon echo > /dev/null 2>&1
+	 CYGWIN=-Djline.terminal=jline.UnixTerminal
+	fi
+}
+
+#
+# Check if JAVA_HOME is set and if so, make sure we run the java there.
+#
+function checkJavaLocation {
+
+#Test for JAVA_HOME settings.  If it is set, we want to use it over and above what /usr/bin/java says
+JAVA=java
+ if  [  "m$JAVA_HOME" != "m" ]; then 
+   if  [ -d "$JAVA_HOME" ];  
+   then 
+ 	JAVA="$JAVA_HOME/bin/java";
+ 	fi
+  fi
+  if [  "m$ORACLE_HOME" != "m" ]; then
+    #if there is a jdk in the Oracle home and JAVA_HOME is not set
+     if  [ -d "$ORACLE_HOME/jdk" ] && [  "m$JAVA_HOME" == "m" ];
+     then
+       JAVA_HOME="$ORACLE_HOME/jdk";
+       JAVA=$JAVA_HOME/bin/java
+     fi
+   fi  
+}
+
+#
+# if we have a debug flag, we want to remove it, but also tell java
+# to switch on debugging. Hence we'll need a new array to pass to java
+#
+function processArgs {
+ id=0;
+ ISDEBUG=0;
+ for var
+ do
+    if [ $var != '-debug' ]
+    then
+      ARGS[id]=$var;
+      let id++;
+    else
+      ISDEBUG=1;
+    fi
+ done
+ if [ $ISDEBUG == 1 ]
+ then
+    DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=8000"
+ else
+    DEBUG=""
+ fi
+}
+
+#
+# Run the tool.
+#
+function run {
+ if  [  "m$DEBUG" != "m" ]; then 
+   echo "JAVA=$JAVA"
+   echo "STD_ARGS=$STD_ARGS"
+   echo "JAVA_OPTS=$JAVA_OPTS"
+   echo "DEBUG=$DEBUG"
+   echo "CPLIST=$CPLIST"
+ fi
+$JAVA  $CUSTOM_JDBC $STD_ARGS $CYGWIN -client $JAVA_OPTS $DEBUG -cp "$CPLIST" oracle.dbtools.raptor.scriptrunner.cmdline.SqlCli "$@"
+}
+
+#
+# This is where we start SQLcl properly. We're going to process the arguments
+# sent in, build our classpath, build our JVM options, prepare the terminal
+# and kick off the main.
+#
+function bootStrap {
+	echo "$@" | grep '\-debug' > /dev/null 2>&1 
+	if test "m$?" != "m0"
+	then
+		#if it is not debug we can pass the arguments straight through 
+		#runNormalArgs
+		run "$@"
+	   exit $?
+	else
+		# Process the arguments and see if we have are in debug mode
+		processArgs "$@"
+		#
+		# if you want to see what is getting passed, uncomment the next line
+		#echo "after process args ${ARGS[@]}"
+		#runModifiedArgs
+		run ${ARGS[*]}
+	fi
+}
+
+
+
+setupArgs
+
+setupSQLHome
+setupClasspath
+checkCygwin
+checkJavaLocation
+#Lets get your freak on
+bootStrap "$@"

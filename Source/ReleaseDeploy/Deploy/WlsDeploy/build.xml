@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+<project name="WlsDeploy">
+  <!-- Initializations -->
+  <property name="domain.deploy.script" value="deploy.py"/>
+  <path id="library.wlst">
+    <fileset dir="${weblogic.home}/server/lib">
+      <include name="weblogic.jar"/>
+      <include name="wls-api.jar"/>
+    </fileset>
+  </path>
+  <!-- Taskdef voor wlst -->
+  <taskdef name="wlst" classpathref="library.wlst" classname="weblogic.ant.taskdefs.management.WLSTTask"/>
+  <!-- Import a project/config.jar into OSB -->
+  <target name="deployApplication">
+    <logMessage message="Calling WLST script ${domain.deploy.script}, with the following parameters:" level="info"/>
+    <logMessage message="wls.username: ${wls.username}" level="info"/>
+    <logMessage message="wls.password: ****" level="info"/>
+    <logMessage message="wls.server: ${wls.server}" level="info"/>
+    <logMessage message="deploy.name: ${deploy.name}" level="info"/>
+    <logMessage message="deploy.archive: ${deploy.archive}" level="info"/>
+    <logMessage message="deploy.targets: ${deploy.targets}" level="info"/>
+    <logMessage message="deploy.plan.includeFile: ${deploy.plan.includeFile}" level="info"/>
+    <logMessage message="deploy.planFile: ${deploy.planFile}" level="info"/>
+    
+    <record name="${log.file}" action="start" append="true"/>
+    <wlst filename="${domain.deploy.script}" debug="${deploy.debug}" failonerror="true" classpathref="library.wlst"
+          arguments="${wls.username} ${wls.password} ${wls.server} ${deploy.name} ${deploy.archive} ${deploy.targets} ${deploy.plan.includeFile} ${deploy.planFile}">
+      <script>
+           adminUser=sys.argv[1]
+           adminPassword=sys.argv[2]
+           adminUrl=sys.argv[3]
+           deployName=sys.argv[4]
+           deployArchive=sys.argv[5]
+           deployTargets=sys.argv[6]
+           deployPlanIncludeFile=sys.argv[7]
+           deployPlanFile=sys.argv[8]
+           #Connect to Weblogic
+           print "Try to connect with user "+adminUser+" to Admin Server on: "+ adminUrl
+           connect(adminUser,adminPassword,adminUrl)
+           domainRuntime()</script>
+    </wlst>
+    <record name="${log.file}" action="stop" append="true"/>
+  </target>
+</project>

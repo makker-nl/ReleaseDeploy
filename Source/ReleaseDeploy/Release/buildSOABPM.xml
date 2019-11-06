@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- SOA/Bpm Release All script 
+Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
+Adapted to suite a split Release/Deploy process. And to include OSB.
+@author Martien van den Akker, Darwin-IT Professionals
+@version 2.0, 2013-11-18
+history:
+2017-09-24, 2.0, Makker: Abstracted to a separate release SOA/BPM sub project.
+-->
+<project name="ReleaseSOABPM" default="releaseSOABPMAll">
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="2.0"/>
+  <!-- Release an application  -->
+  <target name="releaseSOABPMApplication">
+    <propertycopy name="application.src.dir" from="${rel.application}.src.dir"/>
+    <propertycopy name="application.dest.base" from="${rel.application}.dest.base"/>
+    <property name="application.dest.dir" value="${rel.output.dir}/${application.dest.base}/${rel.application}"/>
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> ${rel.application}" level="info"/>
+    <logMessage message="==> ${release}" level="info"/>
+    <logMessage message="==> Source folder of ${rel.application}: ${application.src.dir}" level="info"/>
+    <logMessage message="==> Release destination of ${rel.application}: ${application.dest.dir}" level="info"/>
+    <logMessage message="==> Propertyfile of ${rel.application}: ${application.src.dir}/build.${release}.properties"
+                level="info"/>
+    <property file="${application.src.dir}/build.${release}.properties"/>
+    <logMessage message="==> Application Type of ${rel.application}: ${application.type}" level="info"/>
+    <logMessage message="*************************"/>
+    <if>
+      <or>
+        <equals arg1="${application.type}" arg2="soa"/>
+        <equals arg1="${application.type}" arg2="bpm"/>
+      </or>
+      <then>
+        <!--<ant target="copyBuildProperties"/> -->
+        <copy todir="${application.dest.dir}">
+          <fileset dir="${application.src.dir}" includes=".adf/**,build.${release}.properties"/>
+        </copy>
+        <logMessage message="==>Adapt adf-config.xml file " level="info"/>
+        <replace dir="${application.src.dir}" includes="**/adf-config.xml"
+                 replacefilterfile="${basedir}/adfConfigSubstitution.properties"/>
+        <if>
+          <not>
+            <equals arg1="${soabpm.projects}" arg2="$${soabpm.projects}"/>
+          </not>
+          <then>
+            <logMessage message="${line.separator}==>Release ${rel.application} projects: ${soabpm.projects}"
+                        level="info"/>
+            <foreach list="${soabpm.projects}" param="soabpm.project" target="releaseSOABPMProject" inheritall="true"
+                     inheritrefs="false"/>
+          </then>
+          <else>
+            <logMessage message="Property soabpm.projects not set, so skip." level="info"/>
+          </else>
+        </if>
+      </then>
+      <else>
+        <logMessage message="Application.type (${application.type}) is not 'soa' or 'bpm', so skip." level="info"/>
+      </else>
+    </if>
+  </target>
+  <!-- Replace development URL's and properties with ant properties  -->
+  <target name="adaptSOABPMProject">
+    <logMessage message="======>Adapt ${soabpm.project} as a soa-project." level="info"/>
+    <property name="deploy.configplan" value="${proj.compositeName}_cfgplan.xml"/>
+    <logMessage message="======>Replace strings in ${proj.dest.dir}/${deploy.configplan} to properties" level="info"/>
+    <replace dir="${proj.dest.dir}" includes="${deploy.configplan}"
+             replacefilterfile="${basedir}/configPlanSubstitution.properties"/>
+    <logMessage message="======>Replace strings in ${proj.dest.dir}/composite.xml to properties" level="info"/>
+    <replace dir="${proj.dest.dir}" includes="composite.xml"
+             replacefilterfile="${basedir}/compositeSubstitution.properties"/>
+  </target>
+  <!-- Release a Project -->
+  <target name="releaseSOABPMProject">
+    <property name="proj.compositeName" value="${soabpm.project}"/>
+    <property name="proj.src.dir" value="${application.src.dir}/${soabpm.project}"/>
+    <property name="proj.dest.dir" value="${application.dest.dir}/${soabpm.project}"/>
+    <propertycopy name="soabpm.project.type" from="${soabpm.project}.type"/>
+    <if>
+      <or>
+        <equals arg1="${soabpm.project.type}" arg2="soa"/>
+        <equals arg1="${soabpm.project.type}" arg2="bpm"/>
+      </or>
+      <then>
+        <logMessage message="${line.separator}====>Release project ${soabpm.project}, type: ${soabpm.project.type} to ${proj.dest.dir}"
+                    level="info"/>
+        <copy todir="${proj.dest.dir}">
+          <fileset dir="${proj.src.dir}" excludes="build/**,classes/**,deploy/**,SCA-INF/**,**/public_html/**"/>
+        </copy>
+        <antcall target="adaptSOABPMProject"/>
+      </then>
+      <else>
+        <logMessage message="${line.separator}====>Project ${soabpm.project}, type: ${soabpm.project.type}, is not a composite, so skip."
+                    level="info"/>
+      </else>
+    </if>
+  </target>
+</project>

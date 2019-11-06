@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Generic Prep 0001: Sample script
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2018-01-09
+-->
+<project name="Gen0001_Sample">
+  <!-- runPrep's main target -->
+  <target name="runPrep">
+    <logMessage message="Sample Preparation ${ant.project.name}" level="info"/>
+    <logMessage message="Environment: " level="info"/>
+    <logMessage message="Prep folder: ${prep.folder}" level="info"/>
+    <!-- Check the property file of the prep -->
+    <property name="prep.properties" value="${prep.folder}/${ant.project.name}.properties"/>
+    <available file="${prep.properties}" property="prep.properties.available"/>
+    <fail unless="prep.properties.available"
+          message="Prep property file ${prep.properties} not found. Perperation ${ant.project.name} setup!"/>
+    <logMessage message="Load prep property file ${prep.properties}" level="info"/>
+    <property file="${prep.properties}"/>
+    <!-- Sample code snippet, replace with your own code -->
+    <logMessage message="Run sample script for ${exampleServers}" level="info"/>
+  </target>
+</project>

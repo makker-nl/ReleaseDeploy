@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- BPM Prep 0003: Update database adapter
+@author Martien van den Akker, Darwin-IT Professionals
+@version 1.0, 2013-11-19
+-->
+<project name="Bpm0003_DbAdapter">
+  <target name="addDataSourceToDBadt">
+    <!-- Copy properties per DataSource -->
+    <propertycopy name="eisName" from="${dataSourceName}.eisName"/>
+    <propertycopy name="xaEnabled" from="${dataSourceName}.xaEnabled"/>
+    <propertycopy name="dsJndiName" from="${dataSourceName}.dsJndiName"/>
+    <!-- Create  DataSource  -->
+    <logMessage message="${line.separator}Add DataSource ${dataSourceName} to Database Adapter." level="info"/>
+    <addOutboundConnectionPoolToDBadt adminuser="${deploy.user}" adminpassword="${deploy.password}"
+                                      adminurl="${deploy.adminServerURL}" fmwhome="${targetFmwHome}"
+                                      dbadtplanfolder="${dbAdtPlanFolder}" dbadtplanfilename="${dbAdtPlanFileName}"
+                                      eisname="${eisName}" xaenabled="${xaEnabled}" dsjndiname="${dsJndiName}"/>
+  </target>
+  <!-- runPrep's main target -->
+  <target name="runPrep">
+    <logMessage message="Script voor toevoegen van DataSources als Outbound Connection Pools aan DbAdapter"
+                level="info"/>
+    <logMessage message="Environment: " level="info"/>
+    <logMessage message="Prep folder: ${prep.folder}" level="info"/>
+    <!-- Check the property file of the prep -->
+    <property name="prep.properties" value="${prep.folder}/${ant.project.name}.properties"/>
+    <available file="${prep.properties}" property="prep.properties.available"/>
+    <fail unless="prep.properties.available"
+          message="Prep property file ${prep.properties} not found. Perperation ${ant.project.name} setup!"/>
+    <logMessage message="Load prep property file ${prep.properties}" level="info"/>
+    <property file="${prep.properties}"/>
+    <!-- Add OutboundConnectionPools for dataSources -->
+    <logMessage message="Add DataSources to DbAdapter: ${dataSourceNames} " level="info"/>
+    <foreach list="${dataSourceNames}" param="dataSourceName" target="addDataSourceToDBadt" inheritall="true"
+             inheritrefs="false"/>
+  </target>
+</project>

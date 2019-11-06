@@ -1,0 +1,74 @@
+Copy release properties ..\..\Releases/release.DOE_1.0.0.properties to c:/temp/FMWReleaseAll/DOE/1.0.0
+FMW_Home: c:\Oracle\JDeveloper\12210_BPMQS
+java.home: C:\PROGRA~1\Java\JDK18~2.0_1\jre
+java.passed.home: C:\PROGRA~1\Java\JDK18~2.0_1
+Deploy Home: c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/../Deploy
+InfraPrep Home: c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/../InfraPrep
+Applications to release: 
+Log File: c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/logs/instance-333.log
+Development mode: false
+Release output dir: c:/temp/FMWReleaseAll/DOE/1.0.0
+Temp output dir: c:/temp
+
+*************************
+FMWReleaseAll
+Version 2.0, by Martien van den Akker
+FMWReleaseAll
+Version 2.0, by Martien van den Akker
+Building DOE release 1.0.0
+date = 2017-12-21 15:07:01
+build = 333
+*************************
+
+Release MDS Applications.
+ReleaseMDS
+Version 2.0, by Martien van den Akker
+
+*************************
+==> Release MDS applications DOE 
+==> Build destination: c:/temp/FMWReleaseAll/DOE/1.0.0/MDS
+*************************
+Make folder: c:/temp/FMWReleaseAll/DOE/1.0.0/MDS
+
+*************************
+==> Release MDS Application for DOE
+==> Home of MDS Application: ../../Services/MDS
+==> Build destination: c:/temp/FMWReleaseAll/DOE/1.0.0/MDS/DOE
+==> MDS application properties: DOE.1.0.0.properties
+*************************
+Load package application property-file: ../../Services/MDS/DOE.1.0.0.properties
+Make folder: c:/temp/FMWReleaseAll/DOE/1.0.0/MDS/DOE
+Copy application home ../../Services/MDS to c:/temp/FMWReleaseAll/DOE/1.0.0/MDS/DOE
+Process mds application projects DOE,DPS
+====>Include mds.application DOE
+====>Include mds.application DPS
+====>Include mds.application 
+
+Release applications  
+
+Release Generic Project.
+
+====>Release deploy project Generic
+
+Release Deploy Project.
+
+====>Release deploy project Deploy
+======>Replace From File c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/../Deploy/deploy.properties.tpl
+======>Replace To   File c:/temp/FMWReleaseAll/DOE/1.0.0/scripts/Deploy/deploy.properties
+======>Replace strings release          1.0.0
+======>Replace strings releaseName      DOE
+======>Replace strings applications     
+======>Replace strings mds.applications DOE
+======>Replace strings mds.deploy       true
+======>Copy c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/../Deploy/OsbImport to c:/temp/FMWReleaseAll/DOE/1.0.0/scripts/Deploy/OsbImport
+
+Release infraPrep Project.
+
+====>Release InfraPrep project InfraPrep
+Copy infraPrep project InfraPrep to c:/temp/FMWReleaseAll/DOE/1.0.0/scripts/InfraPrep
+Copy infraPrep properties c:\Data\Svn\DOE\trunk\ReleaseDeploy\Release/../InfraPrep/infraPrep.properties.tpl to c:/temp/FMWReleaseAll/DOE/1.0.0/scripts/InfraPrep/infraPrep.properties
+Copy release properties ..\..\Releases/infraPrep.DOE_1.0.0.properties to c:/temp/FMWReleaseAll/DOE/1.0.0
+Copy Infra Preperations from  ..\..\Releases/infraPreps to c:/temp/FMWReleaseAll/DOE/1.0.0/infraPreps
+Copy Username/Password script ..\..\Releases/${dbUsersScript} to c:/temp/FMWReleaseAll/DOE/1.0.0
+==>Zip the Release into c:/temp/DOE_1.0.0.zip
+==>Move c:/temp/DOE_1.0.0.zip to ..\..\Releases/dist/DOE.

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- FMW Release All script 
+Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
+Adapted to suite a split Release/Deploy process. 
+@author Martien van den Akker, Darwin-IT Professionals
+@version 3.0, 2017-09-13
+history:
+2013-11-15, 2.0, Makker: Include OSB Release.
+2017-09-13, 2.0, Makker: Restructured and Transformed to support SOA/BPM 12c. Removed support for OSB11g.
+-->
+<project name="FMWReleaseAll" default="releaseAll">
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="2.0"/>
+  <property environment="env"/>
+  <property file="${basedir}/build.properties"/>
+  <property name="tmp.output.dir" value="${java.io.tmpdir}"/>
+  <import file="${deploy.project.home}/library.xml"/>
+  <taskdef resource="net/sf/antcontrib/antlib.xml">
+    <classpath>
+      <pathelement location="${ant-contrib.jar}"/>
+    </classpath>
+  </taskdef>
+  <!--Initialize Release -->
+  <target name="initRelease">
+    <if>
+      <equals arg1="${dev.mode}" arg2="true"/>
+      <then>
+        <property name="release" value="0.0.1"/>
+      </then>
+    </if>
+    <!-- Check Release -->
+    <if>
+      <not>
+        <isset property="releaseName"/>
+      </not>
+      <then>
+        <fail>Please provide a releaseName property. Example: ant -DreleaseName=YourProject</fail>
+      </then>
+      <elseif>
+        <not>
+          <isset property="release"/>
+        </not>
+        <then>
+          <fail>Please provide a release property. Example: ant -Drelease=0.0.1</fail>
+        </then>
+      </elseif>
+      <elseif>
+        <not>
+          <isset property="releaseDir"/>
+        </not>
+        <then>
+          <fail>Please provide a releaseDir property. Example: ant -DreleaseDir=../../Releases</fail>
+        </then>
+      </elseif>
+      <else>
+        <echo message="Release ${releaseName} nr: ${release}, folder: ${releaseDir}" level="info"></echo>
+      </else>
+    </if>
+    <property name="rel.output.dir" value="${tmp.output.dir}/${ant.project.name}/${releaseName}/${release}"/>
+    <property name="rel.properties" value="release.${releaseName}_${release}.properties"/>
+    <available file="${releaseDir}/${rel.properties}" property="rel.properties.available"/>
+    <fail unless="rel.properties.available"
+          message="Release property file ${releaseDir}/${rel.properties} not found. Please check parameters!"/>
+    <echo message="Load property file ${releaseDir}/${rel.properties}" level="info"></echo>
+    <property file="${releaseDir}/${rel.properties}"/>
+  </target>
+  <!-- Clean -->
+  <target name="clean" depends="initRelease">
+    <echo message="Delete temp output dir" level="info"></echo>
+    <delete dir="${rel.output.dir}"/>
+    <echo message="Delete log dir" level="info"></echo>
+    <delete dir="${log.dir}"/>
+  </target>
+  <!-- init -->
+  <target name="init" depends="clean,initRelease">
+    <tstamp/>
+    <echo message="Create log dir " level="info"></echo>
+    <mkdir dir="${log.dir}"/>
+    <echo message="Create release output dir " level="info" />
+    <mkdir dir="${rel.output.dir}"/>
+    <!-- Build number -->
+    <condition property="build.number" value="${env.BUILD_NUMBER}">
+      <isset property="env.BUILD_NUMBER"/>
+    </condition>
+    <buildnumber file="build.num"/>
+    <!-- Build time -->
+    <tstamp>
+      <format property="build.date" pattern="yyyy-MM-dd HH:mm:ss"/>
+    </tstamp>
+    <property name="log.file" value="${log.dir}/instance-${build.number}.log"/>
+    <!-- Copy Release properties -->
+    <logMessage message="Copy release properties ${releaseDir}/${rel.properties} to ${rel.output.dir}" level="info"/>
+    <copy todir="${rel.output.dir}">
+      <fileset dir="${releaseDir}" includes="${rel.properties}"/>
+    </copy>
+  </target>
+  <!-- log env properties -->
+  <target name="logEnvProps"  depends="init">
+    <logMessage message="FMW_Home: ${fmw.home}" level="info"/>
+    <logMessage message="java.home: ${java.home}" level="info"/>
+    <logMessage message="java.passed.home: ${java.passed.home}" level="info"/>
+    <logMessage message="Deploy Home: ${deploy.project.home}" level="info"/>
+    <logMessage message="InfraPrep Home: ${infraPrep.project.home}" level="info"/>
+    <logMessage message="Applications to release: ${rel.applications}" level="info"/>
+    <logMessage message="Log File: ${log.file}" level="info"/>
+    <logMessage message="Development mode: ${dev.mode}" level="info"/>
+    <logMessage message="Release output dir: ${rel.output.dir}" level="info"/>
+    <logMessage message="Temp output dir: ${tmp.output.dir}" level="info"/>
+  </target>
+  <!-- Zip the release -->
+  <target name="zipRelease">
+    <property name="releaseZipFile" value="${tmp.output.dir}/${releaseName}_${release}.zip"/>
+    <logMessage message="==>Zip the Release into ${releaseZipFile}" level="info"/>
+    <delete file="${releaseZipFile}"/>
+    <zip destfile="${releaseZipFile}" compress="true">
+      <fileset dir="${rel.output.dir}"/>
+    </zip>
+    <logMessage message="==>Move ${releaseZipFile} to ${rel.dest.dir}." level="info"/>
+    <move file="${releaseZipFile}" todir="${rel.dest.dir}" force="true" overwrite="true"/>
+  </target>
+  <!-- release all -->
+  <target name="releaseAll" depends="init,logEnvProps">
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>
+    <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>
+    <logMessage message="Building ${releaseName} release ${release}" level="info"/>
+    <logMessage message="date = ${build.date}" level="info"/>
+    <logMessage message="build = ${build.number}" level="info"/>
+    <logMessage message="*************************"/>
+    <!-- MDS -->
+    <if>
+      <equals arg1="${mds.enabled}" arg2="true"/>
+      <then>
+        <logMessage message="${line.separator}Release MDS Applications." level="info"/>
+        <ant antfile="buildMDS.xml" target="releaseMDSAll"/>
+      </then>
+      <else>
+        <logMessage message="${line.separator}MDS not enabled, skip release MDS." level="info"/>
+      </else>
+    </if>
+    <!-- Release the applications -->
+    <if>
+      <not>
+        <equals arg1="${rel.applications}" arg2="$${rel.applications}"/>
+      </not>
+      <then>
+        <logMessage message="${line.separator}Release applications ${rel.applications} " level="info"/>
+        <foreach list="${rel.applications}" param="rel.application" target="releaseApplication" inheritall="true"
+                 inheritrefs="false"/>
+      </then>
+      <else>
+        <echo message="==>Property applications not set, so skip."></echo>
+        <logMessage message="${line.separator}Release applications ${rel.applications} " level="info"/>
+      </else>
+    </if>
+    <!-- Generic Project-->
+    <if>
+      <equals arg1="${generic.enabled}" arg2="true"/>
+      <then>
+        <logMessage message="${line.separator}Release Generic Project." level="info"/>
+        <ant antfile="buildFrameworks.xml" target="releaseGenericProject"/>
+      </then>
+      <else>
+        <logMessage message="${line.separator}Deploy not enabled, skip release Generic Project." level="info"/>
+      </else>
+    </if>
+    <!-- Deploy Project -->
+    <if>
+      <equals arg1="${deploy.enabled}" arg2="true"/>
+      <then>
+        <logMessage message="${line.separator}Release Deploy Project." level="info"/>
+        <ant antfile="buildFrameworks.xml" target="releaseDeployProject"/>
+      </then>
+      <else>
+        <logMessage message="${line.separator}Deploy not enabled, skip release Deploy Project." level="info"/>
+      </else>
+    </if>
+    <!-- Infra Patch Project -->
+    <if>
+      <equals arg1="${infraPrep.enabled}" arg2="true"/>
+      <then>
+        <logMessage message="${line.separator}Release infraPrep Project." level="info"/>
+        <ant antfile="buildFrameworks.xml" target="releaseInfraPrepProject"/>
+      </then>
+      <else>
+        <logMessage message="${line.separator}InfraPatch not enabled, skip release infraPatch Project." level="info"/>
+      </else>
+    </if>
+    <!-- Zip it -->
+    <ant target="zipRelease"/>
+  </target>
+  <!-- Release an application  -->
+  <target name="releaseApplication">
+    <propertycopy name="application.src.dir" from="${rel.application}.src.dir"/>
+    <propertycopy name="application.dest.base" from="${rel.application}.dest.base"/>
+    <property name="application.dest.dir" value="${rel.output.dir}/${application.dest.base}/${rel.application}"/>
+    <logMessage message="${line.separator}*************************"/>
+    <logMessage message="==> ${rel.application}" level="info"/>
+    <logMessage message="==> ${release}" level="info"/>
+    <logMessage message="==> Source folder of ${rel.application}: ${application.src.dir}" level="info"/>
+    <logMessage message="==> Release destination of ${rel.application}: ${application.dest.dir}" level="info"/>
+    <logMessage message="==> Propertyfile of ${rel.application}: ${application.src.dir}/build.${release}.properties"
+                level="info"/>
+    <property file="${application.src.dir}/build.${release}.properties"/>
+    <logMessage message="==> Application Type of ${rel.application}: ${application.type}" level="info"/>
+    <logMessage message="*************************"/>
+    <if>
+      <equals arg1="${application.type}" arg2="osb"/>
+      <then>
+        <ant antfile="buildOSB.xml" target="releaseOSBApplication"/>
+      </then>
+      <elseif>
+        <or>
+          <equals arg1="${application.type}" arg2="soa"/>
+          <equals arg1="${application.type}" arg2="bpm"/>
+        </or>
+        <then>
+          <ant antfile="buildSOABPM.xml" target="releaseSOABPMApplication"/>
+        </then>
+      </elseif>
+      <elseif>
+        <equals arg1="${application.type}" arg2="mvnear"/>
+        <then>
+          <ant antfile="buildMVNEAR.xml" target="releaseMVNEARApplication"/>
+        </then>
+      </elseif>
+      <elseif>
+        <equals arg1="${application.type}" arg2="antear"/>
+        <then>
+          <ant antfile="buildANTEAR.xml" target="releaseANTEARApplication"/>
+        </then>
+      </elseif>
+      <else>
+        <logMessage message="Application.type (${application.type}) not supported, so skip." level="info"/>
+      </else>
+    </if>
+  </target>
+</project>

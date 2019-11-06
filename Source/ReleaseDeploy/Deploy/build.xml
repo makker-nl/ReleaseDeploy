@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- SOA/OSB Deploy All script 
+Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
+Adapted to suite a split Release/Deploy process. And to include OSB.
+@author Martien van den Akker, Darwin-IT Professionals
+@version 2.0, 2013-11-18
+history:
+2012-06-14, 0.1, Makker: Initial release.
+2013-11-18, 2.0, Makker: Include OSB deploy.
+-->
+<project name="FMWDeployAll" default="deployAll" basedir=".">
+  <property name="author" value="Martien van den Akker"/>
+  <property name="version" value="2.0"/>
+  <property environment="env"/>
+  <property name="tmp.output.dir" value="${java.io.tmpdir}"/>
+  <property name="deploy.basedir" value="${basedir}"/>
+  <property file="${basedir}/build.properties"/>
+  <import file="${basedir}/library.xml"/>
+  <taskdef resource="net/sf/antcontrib/antlib.xml">
+    <classpath>
+      <pathelement location="${ant-contrib.jar}"/>
+    </classpath>
+  </taskdef>
+  <!-- Deploy Targets -->
+  <!-- Clean Up logs -->
+  <target name="clean">
+    <echo>Delete log dir ${log.dir}</echo>
+    <delete dir="${log.dir}"/>
+  </target>
+  <!-- initialize project -->
+  <target name="init" depends="clean">
+    <fail message="Provide a proper targetEnvironment and environment property directory. ${line.separator} For example ant -f ${ant.project.name}.xml -Ddeployment.plan.environment=dev -Denv.prop.dir=C:\oracle\admin\release\conf">
+      <condition>
+        <not>
+          <and>
+            <isset property="deployment.plan.environment"/>
+            <or>
+              <equals arg1="${deployment.plan.environment}" arg2="lsoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="lbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="losb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="oadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="osoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="obpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="oosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tsoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="tosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="aadf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="asoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="abpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="aosb"/>
+              <equals arg1="${deployment.plan.environment}" arg2="padf"/>
+              <equals arg1="${deployment.plan.environment}" arg2="psoa"/>
+              <equals arg1="${deployment.plan.environment}" arg2="pbpm"/>
+              <equals arg1="${deployment.plan.environment}" arg2="posb"/>
+            </or>
+            <isset property="env.prop.dir"/>
+          </and>
+        </not>
+      </condition>
+    </fail>
+    <!-- Build number -->
+    <condition property="build.number" value="${env.BUILD_NUMBER}">
+      <isset property="env.BUILD_NUMBER"/>
+    </condition>
+    <!-- Build time -->
+    <tstamp>
+      <format property="build.date" pattern="yyyy-MM-dd HH:mm:ss"/>
+    </tstamp>
+    <buildnumber file="build.num"/>
+    <property file="${basedir}/deploy.properties"/>
+    <echo message="Create log dir" level="debug"></echo>
+    <mkdir dir="${log.dir}"/>
+    <property name="log.file" value="${log.dir}/instance-${build.number}.log"/>
+    <!-- Other properties -->
+    <property name="build.dir" value="${basedir}/builds/${build.number}"/>
+    <property name="source.dir" value="${basedir}/${applications.home}"/>
+    <!-- Check availability and load  environment properties -->
+    <property name="env.properties" value="${deployment.plan.environment}.properties"/>
+    <available file="${env.prop.dir}/${env.properties}" property="env.properties.available"/>
+    <fail unless="env.properties.available"
+          message="Environment property file ${env.prop.dir}/${env.properties} not found. Please check parameters!"/>
+    <logMessage message="Load environment property file ${env.prop.dir}/${env.properties}" level="info"/>
+    <property file="${env.prop.dir}/${env.properties}"/>
+    <!-- Check availability and load  release properties -->
+    <property name="rel.properties" value="release.${releaseName}_${release}.properties"/>
+    <available file="${source.dir}/${rel.properties}" property="rel.properties.available"/>
+    <fail unless="rel.properties.available"
+          message="Release property file ${source.dir}/${rel.properties} not found. Please check parameters!"/>
+    <logMessage message="Load release property file ${source.dir}/${rel.properties}" level="info"/>
+    <property file="${source.dir}/${rel.properties}"/>
+  </target>
+  <!-- log env properties -->
+  <target name="logEnvProps" depends="init">
+    <logMessage message="FMW_Home: ${fmw.home}" level="info"/>
+    <logMessage message="Log File: ${log.file}" level="info"/>
+    <logMessage message="Build dir: ${build.dir}" level="info"/>
+    <logMessage message="Ant contrib jar: ${ant-contrib.jar}" level="info"/>
+    <logMessage message="TMP output dir: ${tmp.output.dir}" level="info"/>
+  </target>
+  <!-- Deploy All SOA projects 
+  <target name="deployAll" depends="init,logEnvProps,copyDeployEnvProperties">-->
+  <target name="deployAll" depends="init,logEnvProps">
+    <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>
+    <logMessage message="basedir ${basedir}" level="debug"/>
+    <logMessage message="release = ${release}" level="info"/>
+    <logMessage message="date = ${build.date}" level="info"/>
+    <logMessage message="build = ${build.number}" level="info"/>
+    <logMessage message="environment = ${deployment.plan.environment}" level="info"/>
+    <logMessage message="environment prop dir = ${env.prop.dir}" level="info"/>
+    <logMessage message="environment prop file = ${env.properties}" level="info"/>
+    <logMessage message="release prop file = ${rel.properties}" level="info"/>
+    <input message="Enter deploy user for environment ${deployment.plan.environment}: " addproperty="deploy.user"/>
+    <input message="Enter password for user ${deploy.user}: " addproperty="deploy.password">
+      <handler classname="org.apache.tools.ant.input.SecureInputHandler"/>
+    </input>
+    <mkdir dir="${build.dir}"/>
+    <if>
+      <equals arg1="${mds.enabled}" arg2="true"/>
+      <then>
+        <ant antfile="${basedir}/buildMDS.xml" target="deployMDSAll" inheritall="true"/>
+      </then>
+      <else>
+        <logMessage message="Skip MDS Deploy." level="info"/>
+      </else>
+    </if>
+    <if>
+      <not>
+        <equals arg1="${dpl.applications}" arg2="$${dpl.applications}"/>
+      </not>
+      <then>
+        <logMessage message="Deploy applications: ${dpl.applications}" level="info"/>
+        <foreach list="${dpl.applications}" param="dpl.application" target="deployApplication" inheritall="true"
+                 inheritrefs="false"/>
+      </then>
+      <else>
+        <echo message="Property dpl.applications  not set, so skip Applications deployment."></echo>
+      </else>
+    </if>
+  </target>
+  <!-- Deploy Application -->
+  <target name="deployApplication">
+    <logMessage message="${line.separator}-->deployApplication deploy application ${dpl.application}.${line.separator}"
+                level="info"/>
+    <propertycopy name="dpl.application.src.base" from="${dpl.application}.dest.base"/>
+    <property name="dpl.application.home" value="${source.dir}/${dpl.application.src.base}/${dpl.application}"/>
+    <logMessage message="---->Application source folder: ${dpl.application.home}" level="info"/>
+    <logMessage message="---->Load property file: ${dpl.application.home}/build.${release}.properties" level="info"/>
+    <property file="${dpl.application.home}/build.${release}.properties"/>
+    <if>
+      <or>
+        <equals arg1="${application.type}" arg2="soa"/>
+        <equals arg1="${application.type}" arg2="bpm"/>
+      </or>
+      <then>
+        <logMessage message="${line.separator}---->Call deploySOABPMApplication for ${dpl.application} of type ${application.type}.${line.separator}"
+                    level="info"/>
+        <ant antfile="${basedir}/buildSOABPM.xml" target="deploySOABPMApplication" inheritall="true"/>
+      </then>
+      <elseif>
+        <equals arg1="${application.type}" arg2="osb"/>
+        <then>
+          <logMessage message="${line.separator}---->Call deployOSBApplication for ${dpl.application} of type ${application.type}.${line.separator}"
+                      level="info"/>
+          <ant antfile="${basedir}/buildOSB.xml" target="deployOSBApplication" inheritall="true"/>
+        </then>
+      </elseif>
+      <elseif>
+        <or>
+          <equals arg1="${application.type}" arg2="mvnear"/>
+          <equals arg1="${application.type}" arg2="antear"/>
+        </or>
+        <then>
+          <logMessage message="${line.separator}---->Call deployEARApplication for ${dpl.application} of type ${application.type}.${line.separator}"
+                      level="info"/>
+          <ant antfile="${basedir}/buildEAR.xml" target="deployEARApplication" inheritall="true"/>
+        </then>
+      </elseif>
+      <else>
+        <logMessage message="${line.separator}----> Application type ${application.type} for application ${dpl.application} not supported, so skip.${line.separator}"
+                    level="info"/>
+      </else>
+    </if>
+  </target>
+</project>
