@@ -2,3 +2,4 @@
 **/classes/**
 Source/Releases/dist/**/*.zip
 Source/ReleaseDeploy/Release/logs/*.log
+Source/ReleaseDeploy/InfraPrep/logs/*.log
