@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+<project name="library">
+      <macrodef name="logMessage">
+            <attribute name="message" default=""/>
+            <attribute name="level" default="debug"/>
+            <sequential>
+                  <echo message="@{message}" level="@{level}"></echo>
+                  <echo file="${log.file}" append="true"
+                        message="@{message}${line.separator}" level="@{level}"></echo>
+            </sequential>
+      </macrodef>
+</project>

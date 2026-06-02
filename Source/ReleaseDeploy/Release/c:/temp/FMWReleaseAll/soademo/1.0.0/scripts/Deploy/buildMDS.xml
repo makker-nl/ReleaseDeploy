@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Build SOA/BPM MDS application-projects script 
+Taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
+@author Martien van den Akker, Darwin-IT Professionals
+@version 0.1, 2012-06-14
+History:
+2012-06-14, 1.0, Makker: Initial Release.
+2017-09-14, 2.0, Makker: Adapted for DVOM.
+-->
+<project name="deployMDS" default="deployMDSAll" basedir=".">
+    <property name="author" value="Martien van den Akker"/>
+    <property name="version" value="2.0"/>
+    <property environment="env"/>
+    <!-- Init demo.mode to false if not explicitly set by caller -->
+    <property name="demo.mode" value="false"/>
+    <!--Initialize Build  -->
+    <target name="initBuild">
+        <property name="mds.output.dir" value="${tmp.output.dir}/MDSBuild"/>
+        <!-- Build number -->
+        <condition property="build.number" value="${alm.build.number}">
+            <isset property="alm.build.number"/>
+            <!-- set deploy.debug  -->
+        </condition>
+        <condition property="deploy.debug" value="${deploy.debug}" else="false">
+            <isset property="deploy.debug"/>
+        </condition>
+        <buildnumber file="build.num"/>
+        <!-- Build time -->
+        <tstamp>
+            <format property="build.date" pattern="yyyy-MM-dd HH:mm:ss"/>
+        </tstamp>
+    </target>
+    <!-- Clean -->
+    <target name="clean" depends="initBuild">
+        <echo message="Delete build output dir" level="info"></echo>
+        <delete dir="${mds.output.dir}"/>
+        <echo message="Delete log dir" level="info"></echo>
+        <delete dir="${log.dir}"/>
+    </target>
+    <!-- init -->
+    <target name="init" depends="clean">
+        <tstamp/>
+        <echo message="Create log dir " level="info"></echo>
+        <mkdir dir="${log.dir}"/>
+        <echo message="Create build output dir " level="info"></echo>
+        <mkdir dir="${mds.output.dir}"/>
+        <property name="log.file" value="${log.dir}/instance-${build.number}.log"/>
+    </target>
+    <!-- Deploy all the MDS applications -->
+    <target name="deployMDSAll" depends="init">
+        <property name="deploy.mds" value="true"/>
+        <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>
+        <logMessage message="${line.separator}*************************" level="info"/>
+        <logMessage message="==> Deploy MDS applications ${mds.applications} " level="info"/>
+        <logMessage message="Deploy ${build.number}" level="info"/>
+        <!-- Log Deploy target properties -->
+        <logMessage message="serverURL: ${deploy.serverURL}" level="info"/>
+        <logMessage message="overwrite: ${deploy.overwrite}" level="info"/>
+        <logMessage message="user: ${deploy.user}" level="info"/>
+        <logMessage message="password: *****" level="info"/>
+        <logMessage message="forceDefault: ${deploy.forceDefault}" level="info"/>
+        <!-- Log MDS Application properties -->
+        <logMessage message="MDS Applications home: ${mds.applications.home}" level="info"/>
+        <logMessage message="MDS Build destination: ${mds.output.dir}" level="info"/>
+        <logMessage message="*************************" level="info"/>
+        <if>
+            <equals arg1="${deploy.mds}" arg2="false"/>
+            <then>
+                <logMessage message="Property deploy.mds is ${deploy.mds}, so skip MDS." level="info"/>
+            </then>
+            <elseif>
+                <equals arg1="${mds.applications}" arg2="$${mds.applications}"/>
+                <then>
+                    <logMessage message="Property mds.applications  not set, so skip MDS." level="info"/>
+                </then>
+            </elseif>
+            <else>
+                <if>
+                    <or>
+                        <equals arg1="${deploy.server.type}" arg2="soa"/>
+                        <equals arg1="${deploy.server.type}" arg2="bpm"/>
+                    </or>
+                    <then>
+                        <logMessage message="Publish mds.applications  ${mds.applications}." level="info"/>
+                        <foreach list="${mds.applications}" param="mds.application" target="deployMDSApplication"
+                                 inheritall="true" inheritrefs="false"/>
+                    </then>
+                    <else>
+                        <logMessage message="Target environment is not soa or bpm (${deploy.server.type}), so skip MDS."
+                                    level="info"/>
+                    </else>
+                </if>
+            </else>
+        </if>
+    </target>
+    <!-- Deploy the MDS application -->
+    <target name="deployMDSApplication">
+        <logMessage message="${line.separator}==>deployMDSApplication: deploy MDS application ${mds.application}"
+                    level="info"/>
+        <property name="mds.application.home" value="${mds.applications.home}/${mds.application}"/>
+        <property name="mds.application.repository" value="${mds.application.home}/apps"/>
+        <property name="mds.application.prop.file" value="${mds.application}.${release}.properties"/>
+        <logMessage message="MDS Repository: ${mds.application.repository}" level="info"/>
+        <logMessage message="Load property-file: ${mds.application.home}/${mds.application.prop.file}" level="info"/>
+        <property file="${mds.application.home}/${mds.application.prop.file}"/>
+        <logMessage message="MDS ${mds.application} application projects: ${mds.application.projects}" level="info"/>
+        <logMessage message="Undeploy (${mds.undeploy}) and deploy MDS" level="info"/>
+        <if>
+            <equals arg1="${mds.undeploy}" arg2="true"/>
+            <then>
+                <logMessage message="Property mds.undeploy = ${mds.undeploy}, so undeploy: ${mds.application.projects}."
+                            level="info"/>
+                <logMessage message="Undeploy (${mds.undeploy}) " level="info"/>
+                <foreach list="${mds.application.projects}" param="mds.application.project"
+                         target="undeployMDSApplicationProject" inheritall="true" inheritrefs="false"/>
+            </then>
+            <else>
+                <logMessage message="Property mds.undeploy = ${mds.undeploy}, so skip undeploy: ${mds.applications}."
+                            level="info"/>
+            </else>
+        </if>
+        <property name="mds.appl.output.dir" value="${mds.output.dir}/${mds.application}"/>
+        <logMessage message="Remove and create local MDS deploy folder ${mds.appl.output.dir}" level="debug"/>
+        <delete dir="${mds.appl.output.dir}"/>
+        <mkdir dir="${mds.appl.output.dir}"/>
+        <if>
+            <not>
+                <equals arg1="${mds.application.projects}" arg2="$${mds.application.projects}"/>
+            </not>
+            <then>
+                <logMessage message="Deploy application projects: ${mds.application.projects}" level="info"/>
+                <foreach list="${mds.application.projects}" param="mds.application.project"
+                         target="deployMDSApplicationProject" inheritall="true" inheritrefs="false"/>
+            </then>
+            <else>
+                <echo message="Property mds.application.projects not set, so skip MDS."></echo>
+            </else>
+        </if>
+    </target>
+    <!-- Deploy MDS Application Project -->
+    <target name="deployMDSApplicationProject">
+        <logMessage message="${line.separator}==>deployMDSApplicationProject: deploy MDS application project ${mds.application.project}"
+                    level="info"/>
+        <logMessage message="remove and create local MDS temp" level="debug"/>
+        <property name="mds.appl.proj.output.dir" value="${mds.appl.output.dir}/${mds.application.project}"/>
+        <logMessage message="Remove and create local MDS deploy folder ${mds.appl.proj.output.dir}" level="debug"/>
+        <delete dir="${mds.appl.proj.output.dir}"/>
+        <mkdir dir="${mds.appl.proj.output.dir}"/>
+        <property name="mds.application.project.jar"
+                  value="${mds.appl.proj.output.dir}/${mds.application.project}_mds.jar"/>
+        <logMessage message="Create Jar-file ${mds.application.project.jar} from MDS store ${mds.application.repository}."
+                    level="info"/>
+        <zip destfile="${mds.application.project.jar}" compress="false">
+            <fileset dir="${mds.application.repository}" includes="${mds.application.project}/**"/>
+        </zip>
+        <property name="mds.application.project.zip" value="${mds.appl.output.dir}/${mds.application.project}_mds.zip"/>
+        <logMessage message="Create zip ${mds.application.project.zip} with MDS jar" level="info"/>
+        <zip destfile="${mds.application.project.zip}" compress="false">
+            <fileset dir="${mds.appl.proj.output.dir}" includes="*.jar"/>
+        </zip>
+        <logMessage message="====>deploy on ${deploy.serverURL} with user ${deploy.user}" level="info"/>
+        <logMessage message="====>deploy sarFile ${mds.application.project.zip}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <logMessage message="====> Demo.mode = ${demo.mode}, so deploy." level="info"/>
+                <logMessage message="====> Oracle home: ${oracle.home}" level="info"/>
+                <logMessage message="====> Call ${soa.home}/bin/ant-sca-deploy.xml" level="info"/>
+                <ant antfile="${soa.home}/bin/ant-sca-deploy.xml" inheritall="false" target="deploy">
+                    <property name="wl_home" value="${wl_home}"/>
+                    <property name="oracle.home" value="${oracle.home}"/>
+                    <property name="serverURL" value="${deploy.serverURL}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="overwrite" value="${deploy.overwrite}"/>
+                    <property name="forceDefault" value="${deploy.forceDefault}"/>
+                    <property name="sarLocation" value="${mds.application.project.zip}"/>
+                </ant>
+            </then>
+            <else>
+                <logMessage message="====> Demo.mode = ${demo.mode}, so skip deploy." level="info"/>
+            </else>
+        </if>
+    </target>
+    <!--Undeploy MDS Application Project -->
+    <target name="undeployMDSApplicationProject">
+        <logMessage message="${line.separator}==>undeployMDSApplicationProject undeploy MDS application ${mds.application.project}"
+                    level="info"/>
+        <logMessage message="====>undeploy MDS app folder apps/${mds.application.project}" level="info"/>
+        <if>
+            <equals arg1="${demo.mode}" arg2="false"/>
+            <then>
+                <logMessage message="====> Demo.mode = ${demo.mode}, so undeploy." level="info"/>
+                <logMessage message="====> Call ${soa.home}/bin/ant-sca-deploy.xml" level="info"/>
+                <ant antfile="${soa.home}/bin/ant-sca-deploy.xml" inheritall="false" target="removeSharedData">
+                    <property name="wl_home" value="${wl_home}"/>
+                    <property name="oracle.home" value="${oracle.home}"/>
+                    <property name="serverURL" value="${deploy.serverURL}"/>
+                    <property name="user" value="${deploy.user}"/>
+                    <property name="password" value="${deploy.password}"/>
+                    <property name="folderName" value="${mds.application.project}"/>
+                </ant>
+            </then>
+            <else>
+                <logMessage message="====> Demo.mode = ${demo.mode}, so skip undeploy." level="info"/>
+            </else>
+        </if>
+    </target>
+</project>

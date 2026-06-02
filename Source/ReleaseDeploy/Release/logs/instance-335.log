@@ -1,0 +1,71 @@
+Copy release properties ../../Releases/release.soademo_1.0.0.properties to c:/temp/FMWReleaseAll/soademo/1.0.0
+FMW_Home: /app/oracle/product/jdeveloper/12214_SOAQS
+java.home: /app/oracle/product/jdk8/jre
+java.passed.home: /app/oracle/product/jdk8
+Deploy Home: /home/oracle/git/makker/ReleaseDeploy/Source/ReleaseDeploy/Release/../Deploy
+InfraPrep Home: /home/oracle/git/makker/ReleaseDeploy/Source/ReleaseDeploy/Release/../InfraPrep
+Applications to release: soademo
+Log File: /home/oracle/git/makker/ReleaseDeploy/Source/ReleaseDeploy/Release/logs/instance-335.log
+Development mode: false
+Release output dir: c:/temp/FMWReleaseAll/soademo/1.0.0
+Temp output dir: c:/temp
+
+*************************
+FMWReleaseAll
+Version 2.0, by Martien van den Akker
+FMWReleaseAll
+Version 2.0, by Martien van den Akker
+Building soademo release 1.0.0
+date = 2026-06-02 15:16:59
+build = 335
+*************************
+
+MDS not enabled, skip release MDS.
+
+Release applications soademo 
+
+*************************
+==> soademo
+==> 1.0.0
+==> Source folder of soademo: ../../Services/soa/soademo
+==> Release destination of soademo: c:/temp/FMWReleaseAll/soademo/1.0.0/services/soa/soademo/soademo
+==> Propertyfile of soademo: ../../Services/soa/soademo/build.1.0.0.properties
+==> Application Type of soademo: soa
+*************************
+
+*************************
+==> soademo
+==> 1.0.0
+==> Source folder of soademo: ../../Services/soa/soademo
+==> Release destination of soademo: c:/temp/FMWReleaseAll/soademo/1.0.0/services/soa/soademo/soademo
+==> Propertyfile of soademo: ../../Services/soa/soademo/build.1.0.0.properties
+==> Application Type of soademo: soa
+*************************
+==>Adapt adf-config.xml file 
+
+==>Release soademo projects: soademo
+
+====>Release project soademo, type: soa to c:/temp/FMWReleaseAll/soademo/1.0.0/services/soa/soademo/soademo/soademo
+======>Adapt soademo as a soa-project.
+======>Replace strings in c:/temp/FMWReleaseAll/soademo/1.0.0/services/soa/soademo/soademo/soademo/soademo_cfgplan.xml to properties
+======>Replace strings in c:/temp/FMWReleaseAll/soademo/1.0.0/services/soa/soademo/soademo/soademo/composite.xml to properties
+
+Release Generic Project.
+
+====>Release deploy project Generic
+
+Release Deploy Project.
+
+====>Release deploy project Deploy
+======>Replace From File /home/oracle/git/makker/ReleaseDeploy/Source/ReleaseDeploy/Release/../Deploy/deploy.properties.tpl
+======>Replace To   File c:/temp/FMWReleaseAll/soademo/1.0.0/scripts/Deploy/deploy.properties
+======>Replace strings release          1.0.0
+======>Replace strings releaseName      soademo
+======>Replace strings applications     soademo
+======>Replace strings mds.applications 
+======>Replace strings mds.deploy       false
+======>Copy /home/oracle/git/makker/ReleaseDeploy/Source/ReleaseDeploy/Release/../Deploy/OsbImport to c:/temp/FMWReleaseAll/soademo/1.0.0/scripts/Deploy/OsbImport
+
+InfraPatch not enabled, skip release infraPatch Project.
+==>Zip the Release into c:/temp/soademo_1.0.0.zip
+==>Move c:/temp/soademo_1.0.0.zip to ../../Releases/dist/soademo.

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+<project name="OsbConfigImportExport">
+  <!-- Initializations -->
+  <property name="domain.import.script" value="import.py"/>
+  <path id="library.osb">
+    <fileset dir="${fmw.home}/osb/lib/modules">
+      <include name="oracle.servicebus.configfwk.jar"/>
+    </fileset>
+    <fileset dir="${weblogic.home}/server/lib">
+      <include name="weblogic.jar"/>
+      <include name="wls-api.jar"/>
+    </fileset>
+    <fileset dir="${osb.home}/lib">
+      <include name="alsb.jar"/>
+    </fileset>
+  </path>
+  <!-- Taskdef voor wlst -->
+  <taskdef name="wlst" classpathref="library.osb" classname="weblogic.ant.taskdefs.management.WLSTTask"/>
+  <!-- Import a project/config.jar into OSB -->
+  <target name="importToOSB">
+    <logMessage message="Calling WLST script ${domain.import.script}, with the following parameters:" level="info"/>
+    <logMessage message="wls.username: ${wls.username}" level="info"/>
+    <logMessage message="wls.password: ****" level="info"/>
+    <logMessage message="wls.server: ${wls.server}" level="info"/>
+    <logMessage message="import.project: ${import.project}" level="info"/>
+    <logMessage message="import.jar: ${import.jar}" level="info"/>
+    <logMessage message="import.customFile: ${import.customFile}" level="info"/>
+    <record name="${log.file}" action="start" append="true"/>
+    <wlst filename="${domain.import.script}" debug="${deploy.debug}" failonerror="true" classpathref="library.osb"
+          arguments="${wls.username} ${wls.password} ${wls.server} ${import.project} ${import.jar} ${import.customFile}">
+      <script>
+           adminUser=sys.argv[1]
+           adminPassword=sys.argv[2]
+           adminUrl=sys.argv[3]
+           passphrase = "osb"
+           project=sys.argv[4]
+           importJar=sys.argv[5]
+           customFile=sys.argv[6]
+           #Connect to Weblogic
+           print "Try to connect with user "+adminUser+" to OSB Admin Server on: "+ adminUrl
+           connect(adminUser,adminPassword,adminUrl)
+           domainRuntime()</script>
+    </wlst>
+    <record name="${log.file}" action="stop" append="true"/>
+  </target>
+</project>
