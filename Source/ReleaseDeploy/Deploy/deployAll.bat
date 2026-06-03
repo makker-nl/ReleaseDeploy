@@ -2,7 +2,7 @@
 rem ###################################################################################################
 rem  deployAll
 rem  Script to deploy OSB, SOA or BPM
-rem 
+rem
 rem  author: Martien van den Akker
 rem  (C) october 2017
 rem  Darwin-IT Professionals
@@ -16,12 +16,12 @@ rem check if FMW_HOME is set
 rem
 if "%FMW_HOME%"=="" (
   echo [ERROR] FMW_HOME not set.
-  echo set FMW_HOME environment  
+  echo set FMW_HOME environment
   GOTO USAGE
 )
 REM
 REM Check if environment is specified on comamnd line
-REM 
+REM
 IF "%DEPLOYMENT_ENVIRONMENT%"=="" (
   ECHO [ERROR] The deployment environment is not specified.
   GOTO USAGE
@@ -48,7 +48,7 @@ IF NOT EXIST %ENV_PROP_DIR% (
 
 REM
 REM Check if property file itself exists
-REM 
+REM
 
 IF NOT EXIST %ENV_PROP_FILE% (
   ECHO [ERROR] The deployment environment  environment configuration file %ENV_PROP_FILE% does not exist
@@ -59,7 +59,7 @@ IF NOT EXIST %ENV_PROP_FILE% (
 
 REM
 REM Check if property file contains proprties matching environment
-REM 
+REM
 
 FIND /c "server" %ENV_PROP_FILE% >NUL
 IF %ERRORLEVEL% EQU 1 (
@@ -75,13 +75,13 @@ ant -f build.xml deployAll  -Denv.prop.dir=%ENV_PROP_DIR% -Ddeployment.plan.envi
 
 :USAGE
 ECHO.
-ECHO [INFO] Run script %0.bat ^<osoa^|obpm^|tsoa^|tbpm^> ^<Environment property location^>
+ECHO [INFO] Run script %0 ^<osoa^|obpm^|tsoa^|tbpm^> ^<Environment property location^>
 ECHO [INFO] %0 obpm ..\Generic
 GOTO END
 
 :HELP
 ECHO.
-ECHO [INFO]Create script %ENV_PROP_FILE% 
+ECHO [INFO]Create script %ENV_PROP_FILE%
 ECHO example content (see for particular content documentation)
 ECHO # Deployment properties for O-BPM-1 Environment.
 ECHO #deploy.user=adminUser

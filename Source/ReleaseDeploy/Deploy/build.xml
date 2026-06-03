@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- SOA/OSB Deploy All script 
+<!-- SOA/OSB Deploy All script
 Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
 Adapted to suite a split Release/Deploy process. And to include OSB.
 @author Martien van den Akker, Darwin-IT Professionals
@@ -34,27 +34,6 @@ history:
         <not>
           <and>
             <isset property="deployment.plan.environment"/>
-            <or>
-              <equals arg1="${deployment.plan.environment}" arg2="lsoa"/>
-              <equals arg1="${deployment.plan.environment}" arg2="lbpm"/>
-              <equals arg1="${deployment.plan.environment}" arg2="losb"/>
-              <equals arg1="${deployment.plan.environment}" arg2="oadf"/>
-              <equals arg1="${deployment.plan.environment}" arg2="osoa"/>
-              <equals arg1="${deployment.plan.environment}" arg2="obpm"/>
-              <equals arg1="${deployment.plan.environment}" arg2="oosb"/>
-              <equals arg1="${deployment.plan.environment}" arg2="tadf"/>
-              <equals arg1="${deployment.plan.environment}" arg2="tsoa"/>
-              <equals arg1="${deployment.plan.environment}" arg2="tbpm"/>
-              <equals arg1="${deployment.plan.environment}" arg2="tosb"/>
-              <equals arg1="${deployment.plan.environment}" arg2="aadf"/>
-              <equals arg1="${deployment.plan.environment}" arg2="asoa"/>
-              <equals arg1="${deployment.plan.environment}" arg2="abpm"/>
-              <equals arg1="${deployment.plan.environment}" arg2="aosb"/>
-              <equals arg1="${deployment.plan.environment}" arg2="padf"/>
-              <equals arg1="${deployment.plan.environment}" arg2="psoa"/>
-              <equals arg1="${deployment.plan.environment}" arg2="pbpm"/>
-              <equals arg1="${deployment.plan.environment}" arg2="posb"/>
-            </or>
             <isset property="env.prop.dir"/>
           </and>
         </not>
@@ -99,7 +78,7 @@ history:
     <logMessage message="Ant contrib jar: ${ant-contrib.jar}" level="info"/>
     <logMessage message="TMP output dir: ${tmp.output.dir}" level="info"/>
   </target>
-  <!-- Deploy All SOA projects 
+  <!-- Deploy All SOA projects
   <target name="deployAll" depends="init,logEnvProps,copyDeployEnvProperties">-->
   <target name="deployAll" depends="init,logEnvProps">
     <logMessage message="${ant.project.name}${line.separator}Version ${version}, by ${author}" level="info"/>

@@ -90,6 +90,9 @@ Modify here the properties:
 | soademo.type           | Project type                                                        | soa\|bpm\|osb\|adf      |
 | soademo.enabled        | Is the composite tobe enabled upon deployment in SOA/BPM Suite      | true                    |
 
+## Config Plans for SOA and BPM
+For SOA and BPM projects, re-create a config plan, by right-clicking on the composiste and choose generate config plan. Leave it unchanged, the deployment framework will generate a configplan for the target environment by replacing the URLs. But, it is required by the deployment framework.
+
 # Release
 To perform a Release on a Linux machine, execute:
 
@@ -113,17 +116,37 @@ where:
 
 
 # Deploy
-
-Create a file  with the following (example) content:
+## Environment configurations
+For a SOA deployment, create a file as _${ENVIRONMENT_NAME}properties_ with the following (example) content:
 ````
-overwrite=true
-user=wls_admin
-password=<password you know>
-forceDefault=true
-deploy.keepInstancesOnRedeploy=true
-deploy.server=<your SOA server>
+# Deployment properties for O-SOA-1 Environment.
+deploy.overwrite=true
+deploy.forceDefault=true
+deploy.server.type=soa
+deploy.server=o-soa-1-soa-1-vhn.ont.org.darwin-it.local
 deploy.port=8001
-deploy.serverURL=http://\${server}:\${port}
+deploy.serverURL=http\://${deploy.server}\:${deploy.port}
+deploy.admin.server=o-soa-1-soa-1-vhn.ont.org.darwin-it.local
+deploy.admin.port=8001
+deploy.adminServerURL=t3\://${deploy.admin.server}\:${deploy.admin.port}
+# Config plan replacement properties
+soasuite.URL=${deploy.serverURL}
+soaserver.endpoint=${deploy.server}\:${deploy.port}
+bpm.URL=o-bpm-1.ont.org.darwin-it.local
+soa.URL=o-soa-1.ont.org.darwin-it.local
+osb.URL=o-osb-1.ont.org.darwin-it.local
+````
+
+For a BPM deployment, the file should look like:
+````
+# Deployment properties for O-BPM-1 Environment.
+deploy.overwrite=true
+deploy.forceDefault=true
+deploy.keepInstancesOnRedeploy=true
+deploy.server.type=bpm
+deploy.server=o-bpm-1-bpm-1-vhn.ont.org.darwin-it.local
+deploy.port=8001
+deploy.serverURL=http\://${deploy.server}\:${deploy.port}
 deploy.admin.server=o-bpm-1-admin-vhn.ont.org.darwin-it.local
 deploy.admin.port=7001
 deploy.adminServerURL=t3\://${deploy.admin.server}\:${deploy.admin.port}
@@ -133,4 +156,69 @@ soaserver.endpoint=${deploy.server}\:${deploy.port}
 bpm.URL=o-bpm-1.ont.org.darwin-it.local
 soa.URL=o-soa-1.ont.org.darwin-it.local
 osb.URL=o-osb-1.ont.org.darwin-it.local
+#
+DWN.dbUrl=(description=(address=(host=darlin-01.org.darwinit.local)(protocol=tcp)(port=1521))(connect_data=(service_name=dpso11.dbsrv)))
+DWN.dbUserName=dwn_owner
+DWN.dbPassword=dwn_owner
 ````
+
+For an OSB deployment, the file should look like:
+
+````
+# Deployment properties for O-OSB-1 Environment.
+deploy.mds=false
+deploy.overwrite=true
+deploy.forceDefault=true
+deploy.server.type=osb
+deploy.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
+deploy.port=7001
+deploy.serverURL=t3\://${deploy.server}\:${deploy.port}
+deploy.admin.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
+deploy.admin.port=7001
+deploy.adminServerURL=t3\://${deploy.admin.server}\:${deploy.admin.port}
+# Customization replacement properties
+bpm.URL=http://o-bpm-1.ont.org.darwin-it.local
+soa.URL=http://o-soa-1.ont.org.darwin-it.local
+osb.URL=http://o-osb-1.ont.org.darwin-it.local
+osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
+````
+
+And, for an ADF deployment, the file should look like:
+````
+# Deployment properties for O-OSB-1 Environment.
+deploy.mds=false
+deploy.overwrite=true
+deploy.forceDefault=true
+deploy.server.type=osb
+deploy.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
+deploy.port=7001
+deploy.serverURL=t3\://${deploy.server}\:${deploy.port}
+deploy.admin.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
+deploy.admin.port=7001
+deploy.adminServerURL=t3\://${deploy.admin.server}\:${deploy.admin.port}
+# Customization replacement properties
+bpm.URL=http://o-bpm-1.ont.org.darwin-it.local
+soa.URL=http://o-soa-1.ont.org.darwin-it.local
+osb.URL=http://o-osb-1.ont.org.darwin-it.local
+osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
+````
+
+## Deploy to a target environment:
+To perform a Deployment on a Linux machine, execute:
+
+````
+$ ./deployAll.sh -e osoa -l ../../environments
+````
+
+On Windows:
+
+````
+...> deployAll.bat osoa ..\..\environments
+````
+
+where:
+
+| Argument | Description                              | Example value                                      |
+|----------|------------------------------------------|----------------------------------------------------|
+| -e       | Name of environment                      | osoa                                               |
+| -l       | Location of the environment properties   | ../../environments                                 |
