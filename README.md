@@ -47,25 +47,69 @@ mds.DWN.repository=../../Services/MDS
 
 Modify here the properties:
 
-| Attribute              | Description                                     | example value |
-|------------------------|-------------------------------------------------|---------------|
-| rel.applications       | Comma separated list of applications to release | soademo       |
+| Property               | Description                                                                                                           | example value              |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| rel.applications       | Comma separated list of applications to release                                                                       | soademo                    |
 | rel.dest.dir           | Location to move the generated release to. Variable ${releaseDir} is an Ant property that is created from the corresponding arguments | ${releaseDir}/dist/soademo |
-| deploy.enabled         | Release the Deploy Framework                    | true          |
-| generic.enabled        | Release the Generic  Project, with common artefacts (properties, helper functions) | true |
-| infraPrep.enabled      | Release the infraPrep framework                 | false         |
-| mds.enabled            | Release Metadata Services applications          | false         |
-| mds.applications       | Comma separated list of MDS Applications to release. Leave empty if MDS should not be deployed|   |
-| _Applications_         | Repeat the following properties for occurrence in _rel.applications_ |       |
-| soademo.src.dir        | Source directory of soademo application. If a relative path is given, then the should be relative to _rel.dest.dir_. | ../../Services/soa/soademo |
-| soademo.dest.base      | Base folder of the application within the archive | services/soa |
-| _MDS Applications_     | Repeat the following properties for occurrence in _mds.applications_ |       |
+| deploy.enabled         | Release the Deploy Framework                                                                                          | true                       |
+| generic.enabled        | Release the Generic  Project, with common artefacts (properties, helper functions)                                    | true                       |
+| infraPrep.enabled      | Release the infraPrep framework                                                                                       | false                      |
+| mds.enabled            | Release Metadata Services applications                                                                                | false                      |
+| mds.applications       | Comma separated list of MDS Applications to release. Leave empty if MDS should not be deployed                        |                            |
+| _Applications_         | Repeat the following properties for occurrence in _rel.applications_                                                  |                            |
+| soademo.src.dir        | Source directory of soademo application. If a relative path is given, then the should be relative to _rel.dest.dir_.  | ../../Services/soa/soademo |
+| soademo.dest.base      | Base folder of the application within the archive                                                                     | services/soa               |
+| _MDS Applications_     | Repeat the following properties for occurrence in _mds.applications_                                                  |                            |
 | mds.soademo.repository | Location of the MDS repository of _soademo_.  If a relative path is given, then the should be relative to  _rel.dest.dir_. | ../../Services/MDS |
 
+Per application that must be released, put a _build.properties_ file in the root of the application (see the _soademo.src.dir_ property), with the following content:
+````
+#Application Type
+application.type=soa
+soabpm.partition=default
+soabpm.revision=1.0
+#
+# soabpm.mds.application=soademo
+# list of projects to release & deploy
+soabpm.projects=soademo
+#
+soademo.type=soa
+soademo.enabled=true
+````
 
+Modify here the properties:
+
+| Property               | Description                                                         | example value           |
+|------------------------|---------------------------------------------------------------------|-------------------------|
+| application.type       | Comma separated list of applications to release                     | soa\|bpm\|osb\|adf      |
+| soabpm.partition       | In case of SOA or BPM: the partition to deploy to                   | default                 |
+| soabpm.revision        | SOA/BPM Composite revision to use                                   | 1.0                     |
+| soabpm.mds.application | Name of the MDS application that is used by the application         | soademo                 |
+| soabpm.projects        | list of projects to release & deploy in this application            | soademo                 |
+| _Projects_             | Repeat following properties for every project in _soabpm.projects_  |                         |
+| soademo.type           | Project type                                                        | soa\|bpm\|osb\|adf      |
+| soademo.enabled        | Is the composite tobe enabled upon deployment in SOA/BPM Suite      | true                    |
 
 # Release
-Run
+To perform a Release on a Linux machine, execute:
+
+````
+$ ./releaseAll.sh  -n soademo -r 1.0.0 -l ../../Releases
+````
+
+On Windows:
+
+````
+...> releaseAll.bat soademo 1.0.0 ..\..\Releases
+````
+
+where:
+
+| Argument | Description                              | Example value                                      |
+|----------|------------------------------------------|----------------------------------------------------|
+| -n       | Name of the release                      | soademo                                            |
+| -r       | Release number as 3 level version number | 1.0.0                                              |
+| -l       | Release location                         | ../../Releases (Linux) or ..\..\Releases (Windows) |
 
 
 # Deploy
