@@ -44,7 +44,9 @@ soademo.dest.base=services/soa
 # If a relative path is given, then the should be relative _rel.dest.dir_..
 mds.DWN.repository=../../Services/MDS
 ````
+
 Modify here the properties:
+
 | Attribute              | Description                                     | example value |
 |========================|=================================================|===============|
 | rel.applications       | Comma separated list of applications to release | soademo       |
