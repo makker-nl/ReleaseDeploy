@@ -3,3 +3,5 @@
 Source/Releases/dist/**/*.zip
 Source/ReleaseDeploy/Release/logs/*.log
 Source/ReleaseDeploy/InfraPrep/logs/*.log
+Source/ReleaseDeploy/Deploy/build.num
+Source/ReleaseDeploy/Deploy/logs/*.log

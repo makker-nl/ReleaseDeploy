@@ -19,7 +19,7 @@ export LOG_LVL_ERROR="ERROR"
 function log() {
   local environment=${OCI_ENVIRONMENT:-""}
   local log_level=$1
-  echo "[`date +%Y-%m-%d' '%T`] [$log_level] [${environment}] ${@:2}"
+  echo "[`date +%Y-%m-%d' '%T`] [$log_level] ${@:2}"
 } # end log ()
 
 # Log a debug message

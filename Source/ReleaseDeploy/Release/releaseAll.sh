@@ -48,8 +48,8 @@ function check_args(){
   if [ -z ${JAVA_HOME:+x} ]; then
     usage "export JAVA_HOME to a supported JDK home (Java 8 for FMW 12.2.1.4, Java 17+ for FMW 14.1.2.0+)"
   fi
-    if [ -s "${ANT_HOME}\bin\ant" ]; then
-    usage "Ant not found in ${ANT_HOME}\bin"
+    if [ ! -s "${ANT_HOME}/bin/ant" ]; then
+    usage "Ant not found in ${ANT_HOME}/bin"
   fi
   export OSB_OPTS=""
   export OSB_OPTS+=" -Dweblogic.home=${WL_HOME}/server -Dosb.home=${OSB_HOME}"
@@ -71,6 +71,7 @@ function main(){
   logdebug "ANT_OPTS=${ANT_OPTS}"
   echo "Call ant for project ${RELEASE_NAME} and release ${RELEASE_NR} from release home ${RELEASE_DIR}"
   ant -f build.xml -DreleaseName=${RELEASE_NAME} -Drelease=${RELEASE_NR}  -DreleaseDir=${RELEASE_DIR}
+  loginfo "Done releasing ${RELEASE_NAME}-${RELEASE_NR} into ${RELEASE_DIR}"
 }
 
 main "$@"
