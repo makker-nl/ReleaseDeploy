@@ -114,7 +114,7 @@ where:
 
 # Deploy
 
-Create a file  with the following (example) content
+Create a file  with the following (example) content:
 ````
 overwrite=true
 user=wls_admin
