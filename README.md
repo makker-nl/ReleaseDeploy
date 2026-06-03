@@ -48,7 +48,7 @@ mds.DWN.repository=../../Services/MDS
 Modify here the properties:
 
 | Attribute              | Description                                     | example value |
-|========================|=================================================|===============|
+|------------------------|-------------------------------------------------|---------------|
 | rel.applications       | Comma separated list of applications to release | soademo       |
 | rel.dest.dir           | Location to move the generated release to. Variable ${releaseDir} is an Ant property that is created from the corresponding arguments | ${releaseDir}/dist/soademo |
 | deploy.enabled         | Release the Deploy Framework                    | true          |
