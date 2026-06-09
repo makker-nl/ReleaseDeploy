@@ -192,15 +192,19 @@ deploy.forceDefault=true
 deploy.server.type=osb
 deploy.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
 deploy.port=7001
-deploy.serverURL=t3\://${deploy.server}\:${deploy.port}
+deploy.serverURL=https\://${deploy.server}\:${deploy.port}
 deploy.admin.server=o-osb-1-admin-vhn.ont.org.darwin-it.local
 deploy.admin.port=7001
-deploy.adminServerURL=t3\://${deploy.admin.server}\:${deploy.admin.port}
+deploy.adminServerURL=https\://${deploy.admin.server}\:${deploy.admin.port}
 # Customization replacement properties
 bpm.URL=http://o-bpm-1.ont.org.darwin-it.local
 soa.URL=http://o-soa-1.ont.org.darwin-it.local
 osb.URL=http://o-osb-1.ont.org.darwin-it.local
 osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
+# Folders/Partitions are only listed/created when this property is enabled.
+# Disable this property on environments where t3 traffic to the deploy.server is not routed.
+# soabpm.partition.provisioning.enabled=true
+soabpm.partition.provisioning.enabled=false
 ````
 
 ## Deploy to a target environment:
