@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- SOA/OSB Deploy All script 
+<!-- SOA/OSB Deploy All script
 Basis taken from Edwin Biemond's Blog (http://biemond.blogspot.nl/2009/09/deploy-soa-suite-11g-composite.html)
 Adapted to suite a split Release/Deploy process. And to include OSB.
 @author Martien van den Akker, Darwin-IT Professionals
@@ -11,7 +11,7 @@ history:
 <project name="deploySOABPM" default="deploySOABPMAll" basedir=".">
     <property name="author" value="Martien van den Akker"/>
     <property name="version" value="2.0"/>
-    <!-- Deploy All SOA projects 
+    <!-- Deploy All SOA projects
   <target name="deployAll" depends="init,logEnvProps,copyDeployEnvProperties">-->
     <!-- Deploy SOA Application -->
     <target name="deploySOABPMApplication">
@@ -47,17 +47,26 @@ history:
     </target>
     <!-- Deploy Application of type SOA -->
     <target name="deploySOABPMApplicationProjects">
-        <logMessage message="${line.separator}First list partitions ${soabpm.application}, to check partition ${soabpm.partition}."
-                    level="info"/>
-        <antcall target="listPartitions"/>
-        <logMessage message="${line.separator}Try to create partition ${soabpm.partition}." level="info"/>
-        <antcall target="createPartition"/>
-        <!-- Set soamds.apps.home pointing to the MDS app within mds.applications.home -->
+        <if>
+            <equals arg1="${soabpm.partition.provisioning.enabled}" arg2="true"/>
+            <then>
+                <logMessage message="${line.separator}First list partitions ${soabpm.application}, to check partition ${soabpm.partition}."
+                            level="info"/>
+                <antcall target="listPartitions"/>
+
+                <logMessage message="${line.separator}Try to create partition ${soabpm.partition}."
+                            level="info"/>
+                <antcall target="createPartition"/>
+            </then>
+            <else>
+                <logMessage message="${line.separator}Skipping partition provisioning for ${soabpm.partition}."
+                            level="info"/>
+            </else>
+        </if>
+
         <property name="soamds.apps.home" value="${basedir}/${mds.applications.home}/${soabpm.mds.application}"/>
-        <logMessage message="${line.separator}Deploy refering to MDS /apps folder in ${soamds.apps.home}."
-                    level="info"/>
         <foreach list="${soabpm.projects}" param="soabpm.project" target="deploySOABPMProject" inheritall="true"
-                 inheritrefs="false"/>
+                inheritrefs="false"/>
     </target>
     <!-- Adapt configuration plan -->
     <target name="adaptConfigPlan">
@@ -74,6 +83,7 @@ history:
         </copy>
     </target>
     <!-- Deploy a Project -->
+   <!-- Deploy a Project -->
     <target name="deploySOABPMProject">
         <propertycopy name="soabpm.project.type" from="${soabpm.project}.type"/>
         <if>
@@ -86,46 +96,51 @@ history:
                             level="info"/>
                 <property name="soabpm.project.compositeName" value="${soabpm.project}"/>
                 <property name="soabpm.project.src.dir"
-                          value="${soabpm.application.home}/${soabpm.project.compositeName}"/>
+                        value="${soabpm.application.home}/${soabpm.project.compositeName}"/>
                 <property name="soabpm.project.composite.dir" value="${soabpm.project.src.dir}/SOA"/>
                 <property name="soabpm.project.revision" value="${soabpm.revision}"/>
                 <propertycopy name="soabpm.project.enabled" from="${soabpm.project}.enabled"/>
                 <property name="soabpm.project.partition" value="${soabpm.partition}"/>
+
                 <logMessage message="======>partition ${soabpm.project.partition}" level="info"/>
                 <logMessage message="======>compositeName ${soabpm.project.compositeName}" level="info"/>
                 <logMessage message="======>revision ${soabpm.project.revision}" level="info"/>
                 <logMessage message="======>soabpm.project.src.dir ${soabpm.project.src.dir}" level="info"/>
                 <logMessage message="======>soabpm.project.enabled ${soabpm.project.enabled}" level="info"/>
                 <logMessage message="======>Build: ${build.number}${line.separator}" level="info"/>
+
                 <logMessage message="======>Expand properties of ${soabpm.application.home}/.adf/META-INF/adf-config.xml"
                             level="info"/>
                 <move file="${soabpm.application.home}/.adf/META-INF/adf-config.xml"
-                      tofile="${soabpm.application.home}/.adf/META-INF/adf-config.org"/>
+                    tofile="${soabpm.application.home}/.adf/META-INF/adf-config.org"/>
                 <copy file="${soabpm.application.home}/.adf/META-INF/adf-config.org"
-                      tofile="${soabpm.application.home}/.adf/META-INF/adf-config.xml">
+                    tofile="${soabpm.application.home}/.adf/META-INF/adf-config.xml">
                     <filterchain>
                         <expandproperties/>
                     </filterchain>
                 </copy>
+
                 <!-- Create a Sar File -->
                 <antcall target="buildSAR"/>
+
                 <!-- Adapt the configuration plan -->
                 <antcall target="adaptConfigPlan"/>
-                <!-- deploy the SAR -->
+
+                <!-- Deploy the SAR -->
                 <antcall target="deploySAR"/>
+
+                <!-- Only stop it if the composite should be deployed inactive -->
                 <if>
-                    <equals arg1="${soabpm.project.enabled}" arg2="true"/>
+                    <equals arg1="${soabpm.project.enabled}" arg2="false"/>
                     <then>
-                        <logMessage message="======>Activate the composite..." level="info"/>
-                        <antcall target="activateComposite"/>
+                        <logMessage message="======>Stop the composite..." level="info"/>
+                        <antcall target="stopComposite"/>
                     </then>
                     <else>
-                        <logMessage message="======>Stop the composite..." level="info"/>
-                        <then>
-                            <antcall target="stopComposite"/>
-                        </then>
+                        <logMessage message="======>Composite left active after deploy." level="info"/>
                     </else>
                 </if>
+
                 <if>
                     <equals arg1="${soabpm.project.unitTest}" arg2="true"/>
                     <then>
@@ -135,6 +150,7 @@ history:
                         <echo>Skip UnitTest</echo>
                     </else>
                 </if>
+
                 <logMessage message="======>done deploySOAProject" level="info"/>
             </then>
             <else>
