@@ -135,6 +135,11 @@ soaserver.endpoint=${deploy.server}\:${deploy.port}
 bpm.URL=o-bpm-1.ont.org.darwin-it.local
 soa.URL=o-soa-1.ont.org.darwin-it.local
 osb.URL=o-osb-1.ont.org.darwin-it.local
+osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
+# Folders/Partitions are only listed/created when this property is enabled.
+# Disable this property on environments where t3 traffic to the deploy.server is not routed.
+# soabpm.partition.provisioning.enabled=true
+soabpm.partition.provisioning.enabled=false
 ````
 
 For a BPM deployment, the file should look like:
@@ -160,6 +165,11 @@ osb.URL=o-osb-1.ont.org.darwin-it.local
 DWN.dbUrl=(description=(address=(host=darlin-01.org.darwinit.local)(protocol=tcp)(port=1521))(connect_data=(service_name=dpso11.dbsrv)))
 DWN.dbUserName=dwn_owner
 DWN.dbPassword=dwn_owner
+osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
+# Folders/Partitions are only listed/created when this property is enabled.
+# Disable this property on environments where t3 traffic to the deploy.server is not routed.
+# soabpm.partition.provisioning.enabled=true
+soabpm.partition.provisioning.enabled=false
 ````
 
 For an OSB deployment, the file should look like:
@@ -200,11 +210,6 @@ deploy.adminServerURL=https\://${deploy.admin.server}\:${deploy.admin.port}
 bpm.URL=http://o-bpm-1.ont.org.darwin-it.local
 soa.URL=http://o-soa-1.ont.org.darwin-it.local
 osb.URL=http://o-osb-1.ont.org.darwin-it.local
-osb.Jms.URL=jms://o-osb-1-osb-1-vhn.ont.org.darwin-it.local:8011,o-osb-1-osb-2-vhn.ont.org.darwin-it.local:8011
-# Folders/Partitions are only listed/created when this property is enabled.
-# Disable this property on environments where t3 traffic to the deploy.server is not routed.
-# soabpm.partition.provisioning.enabled=true
-soabpm.partition.provisioning.enabled=false
 ````
 
 ## Deploy to a target environment:
